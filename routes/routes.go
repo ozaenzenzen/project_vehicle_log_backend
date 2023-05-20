@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"project_vehicle_log_backend/controllers"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
@@ -10,9 +12,9 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.Use(func(c *gin.Context) {
 		c.Set("db", db)
 	})
-	// r.POST("/account/signin", controllers.SignInAccount)
-	// r.POST("/account/signup", controllers.SignUpAccountV2)
-	// r.GET("/account/userdata/:id", controllers.GetUserData)
+	r.POST("/account/signin", controllers.SignInAccount)
+	r.POST("/account/signup", controllers.SignUpAccount)
+	r.GET("/account/userdata/:id", controllers.GetUserData)
 	// r.GET("/event/allevent", controllers.GetAllEvent)
 	// r.POST("/event/createevent", controllers.CreateEvent)
 	// r.POST("/event/joinevent", controllers.JoinEvent)

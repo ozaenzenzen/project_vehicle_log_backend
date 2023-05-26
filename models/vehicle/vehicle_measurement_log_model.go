@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-type VehicleMeasurementModel struct {
+type VehicleMeasurementLogModel struct {
 	Id                  uint      `json:"id" gorm:"primary_key"`
 	UserId              uint      `json:"user_id"`
 	VehicleId           uint      `json:"vehicle_id"`

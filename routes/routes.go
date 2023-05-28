@@ -15,9 +15,9 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.POST("/account/signin", controllers.SignInAccount)
 	r.POST("/account/signup", controllers.SignUpAccount)
 	r.GET("/account/userdata/:id", controllers.GetUserData)
-	// r.GET("/event/allevent", controllers.GetAllEvent)
-	// r.POST("/event/createevent", controllers.CreateEvent)
-	// r.POST("/event/joinevent", controllers.JoinEvent)
+	r.GET("/vehicle/allvehicle", controllers.GetAllVehicleData)
+	r.POST("/vehicle/createvehicle", controllers.CreateVehicle)
+	r.POST("/vehicle/createlogvehicle", controllers.CreateLogVehicle)
 	// r.POST("/event/submitvolunteer", controllers.SubmitVolunteer)
 	// r.POST("/event/submitevent", controllers.SubmitEvent)
 	// r.GET("/event/getlistvolunteers/:id", controllers.GetListVolunteer) //event id

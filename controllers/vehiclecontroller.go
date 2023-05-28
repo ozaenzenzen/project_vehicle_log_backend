@@ -169,14 +169,14 @@ func CreateLogVehicle(c *gin.Context) {
 		log.Println(fmt.Sprintf("error log JoinEvent1: %s", err))
 		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
 			Status:  500,
-			Message: "Join Event Failed1",
+			Message: "Create Log Vehicle Failed1",
 		})
 		return
 	}
 
 	createLogVehicleResponse := CreateLogVehicleResponse{
 		Status:  201,
-		Message: "Join Event successfully",
+		Message: "Create Log Vehicle successfully",
 	}
 
 	createLogVehicleData := vehicle.VehicleMeasurementLogModel{
@@ -204,16 +204,16 @@ func CreateLogVehicle(c *gin.Context) {
 		return
 	}
 
-	check := db.Where("user_id = ?", createLogVehicleData.UserId).Where("vehicle_id = ?", createLogVehicleData.VehicleId).First(&vehicle.VehicleMeasurementLogModel{})
-	log.Println(fmt.Sprintf("error check error: %s", check.Error))
-	log.Println(fmt.Sprintf("error check value: %s", check.Value))
-	if check.Error == nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
-			Status:  400,
-			Message: "Already Submitted",
-		})
-		return
-	}
+	// check := db.Where("user_id = ?", createLogVehicleData.UserId).Where("vehicle_id = ?", createLogVehicleData.VehicleId).First(&vehicle.VehicleMeasurementLogModel{})
+	// log.Println(fmt.Sprintf("error check error: %s", check.Error))
+	// log.Println(fmt.Sprintf("error check value: %s", check.Value))
+	// if check.Error == nil {
+	// 	c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+	// 		Status:  400,
+	// 		Message: "Already Submitted",
+	// 	})
+	// 	return
+	// }
 
 	result := db.Create(&createLogVehicleData)
 	if result.Error != nil {
@@ -225,8 +225,8 @@ func CreateLogVehicle(c *gin.Context) {
 	}
 	inputNotifModel := notif.Notification{
 		UserId:                  createLogVehicle.UserId,
-		NotificationTitle:       "Add Vehicle",
-		NotificationDescription: "Anda Telah Menambahkan Kendaraan",
+		NotificationTitle:       "Add Vehicle Log",
+		NotificationDescription: "Anda Telah Menambahkan Log Kendaraan",
 		NotificationStatus:      0,
 		NotificationType:        0,
 	}

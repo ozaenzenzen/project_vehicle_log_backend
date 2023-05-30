@@ -119,7 +119,7 @@ func CreateVehicle(c *gin.Context) {
 // 	VehicleMeasurementLogData []vehicle.VehicleMeasurementLogModel `gorm:"not null" json:"vehicle_measurement_log_data" validate:"required"`
 // }
 
-type GetAllEventResponse struct {
+type GetAllVehicleDataResponse struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
 	Data    []vehicle.VehicleModel
@@ -133,17 +133,17 @@ func GetAllVehicleData(c *gin.Context) {
 
 	if result.Value == nil {
 		log.Println(fmt.Sprintf("error log3: %s", result.Error))
-		c.JSON(http.StatusNotFound, GetAllEventResponse{
+		c.JSON(http.StatusNotFound, GetAllVehicleDataResponse{
 			Status:  404,
-			Message: "get all event Failed",
+			Message: "get all vehicle data Failed",
 			Data:    []vehicle.VehicleModel{},
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, GetAllEventResponse{
+	c.JSON(http.StatusOK, GetAllVehicleDataResponse{
 		Status:  200,
-		Message: "get all event success",
+		Message: "get all vehicle data success",
 		Data:    vehicleData,
 	})
 }

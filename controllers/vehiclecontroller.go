@@ -126,10 +126,21 @@ type GetAllVehicleDataResponse struct {
 }
 
 func GetAllVehicleData(c *gin.Context) {
+	dh := c.GetHeader("usd")
+
 	db := c.MustGet("db").(*gorm.DB)
 	var vehicleData []vehicle.VehicleModel
 
-	result := db.Find(&vehicleData)
+	result := db.Table("vehicle_models").Where("user_id = ?", dh).Find(&vehicleData)
+	// result := db.Find(&vehicleData)
+
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
+			Status:  400,
+			Message: result.Error.Error(),
+		})
+		return
+	}
 
 	if result.Value == nil {
 		log.Println(fmt.Sprintf("error log3: %s", result.Error))

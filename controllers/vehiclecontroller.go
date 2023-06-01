@@ -126,7 +126,15 @@ type GetAllVehicleDataResponse struct {
 }
 
 func GetAllVehicleData(c *gin.Context) {
-	dh := c.GetHeader("usd")
+	dh := c.Request.Header.Get("usd")
+
+	if dh == "" {
+		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
+			Status:  400,
+			Message: "headers empty",
+		})
+		return
+	}
 
 	db := c.MustGet("db").(*gorm.DB)
 	var vehicleData []vehicle.VehicleModel

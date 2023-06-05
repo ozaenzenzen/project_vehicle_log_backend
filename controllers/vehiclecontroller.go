@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
+	account "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
 	vehicle "project_vehicle_log_backend/models/vehicle"
 
@@ -126,12 +128,13 @@ type GetAllVehicleDataResponse struct {
 }
 
 func GetAllVehicleData(c *gin.Context) {
-	dh := c.Request.Header.Get("usd")
+	headerid := c.Request.Header.Get("usd")
 
-	if dh == "" {
-		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
+	if headerid == "" {
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
 			Status:  400,
 			Message: "headers empty",
+			Data:    []vehicle.VehicleModel{},
 		})
 		return
 	}
@@ -139,11 +142,33 @@ func GetAllVehicleData(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	var vehicleData []vehicle.VehicleModel
 
-	result := db.Table("vehicle_models").Where("user_id = ?", dh).Find(&vehicleData)
-	// result := db.Find(&vehicleData)
+	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+			Status:  500,
+			Message: "error parsing",
+		})
+		return
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+		ID: iduint,
+	})
+
+	if checkID.Error != nil {
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+			Status:  400,
+			Message: checkID.Error.Error(),
+		})
+		return
+	}
+
+	result := db.Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
 
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
 			Status:  400,
 			Message: result.Error.Error(),
 		})

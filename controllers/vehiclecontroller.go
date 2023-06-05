@@ -142,6 +142,8 @@ func GetAllVehicleData(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	var vehicleData []vehicle.VehicleModel
 
+	//--------check id--------check id--------check id--------
+
 	iduint64, err := strconv.ParseUint(headerid, 10, 32)
 
 	if err != nil {
@@ -164,6 +166,8 @@ func GetAllVehicleData(c *gin.Context) {
 		})
 		return
 	}
+
+	//--------check id--------check id--------check id--------
 
 	result := db.Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
 

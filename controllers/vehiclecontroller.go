@@ -53,6 +53,24 @@ func CreateVehicle(c *gin.Context) {
 		return
 	}
 
+	db := c.MustGet("db").(*gorm.DB)
+
+	//--------check id--------check id--------check id--------
+
+	checkID := db.Table("account_user_models").Where("id = ?", vehicleInput.UserId).Find(&account.AccountUserModel{
+		ID: vehicleInput.UserId,
+	})
+
+	if checkID.Error != nil {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  400,
+			Message: checkID.Error.Error(),
+		})
+		return
+	}
+
+	//--------check id--------check id--------check id--------
+
 	vehicleData := vehicle.VehicleModel{
 		UserId:         vehicleInput.UserId,
 		VehicleName:    vehicleInput.VehicleName,
@@ -70,7 +88,6 @@ func CreateVehicle(c *gin.Context) {
 		Message: "Vehicle created successfully",
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
 	if db.Error != nil {
 		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
 			Status:  400,

@@ -290,3 +290,88 @@ func CreateLogVehicle(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, createLogVehicleResponse)
 }
+
+type GetLogVehicleRequest struct {
+	UserId              uint   `json:"user_id"`
+	VehicleId           uint   `json:"vehicle_id"`
+	MeasurementTitle    string `json:"measurement_title"`
+	CurrentOdo          string `json:"current_odo"`
+	EstimateOdoChanging string `json:"estimate_odo_changing"`
+	AmountExpenses      string `json:"amount_expenses"`
+	CheckpointDate      string `json:"checkpoint_date"`
+	Notes               string `json:"notes"`
+}
+type GetLogVehicleResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+	Data    []vehicle.VehicleMeasurementLogModel
+}
+
+func GetLogVehicle(c *gin.Context) {
+	headerid := c.Request.Header.Get("usd")
+
+	if headerid == "" {
+		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+			Status:  400,
+			Message: "headers empty",
+			Data:    []vehicle.VehicleMeasurementLogModel{},
+		})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+	var logVehicleData []vehicle.VehicleMeasurementLogModel
+
+	//--------check id--------check id--------check id--------
+
+	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+			Status:  500,
+			Message: "error parsing",
+		})
+		return
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+		ID: iduint,
+	})
+
+	if checkID.Error != nil {
+		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+			Status:  400,
+			Message: checkID.Error.Error(),
+		})
+		return
+	}
+
+	//--------check id--------check id--------check id--------
+
+	result := db.Table("vehicle_measurement_log_models").Where("user_id = ?", headerid).Find(&logVehicleData)
+
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+			Status:  400,
+			Message: result.Error.Error(),
+		})
+		return
+	}
+
+	if result.Value == nil {
+		log.Println(fmt.Sprintf("error log3: %s", result.Error))
+		c.JSON(http.StatusNotFound, GetLogVehicleResponse{
+			Status:  404,
+			Message: "get log vehicle data Failed",
+			Data:    []vehicle.VehicleMeasurementLogModel{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, GetLogVehicleResponse{
+		Status:  200,
+		Message: "get log vehicle data success",
+		Data:    logVehicleData,
+	})
+}

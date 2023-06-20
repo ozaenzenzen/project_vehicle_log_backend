@@ -17,6 +17,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.GET("/account/userdata/:id", controllers.GetUserData)
 	r.GET("/vehicle/allvehicle", controllers.GetAllVehicleData)
 	r.POST("/vehicle/createvehicle", controllers.CreateVehicle)
+	r.POST("/vehicle/editvehicle", controllers.EditVehicle)
 	r.POST("/vehicle/createlogvehicle", controllers.CreateLogVehicle)
 	r.GET("/vehicle/getlogvehicle", controllers.GetLogVehicle)
 	// r.POST("/event/submitevent", controllers.SubmitEvent)

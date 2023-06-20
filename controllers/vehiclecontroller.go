@@ -125,23 +125,24 @@ func CreateVehicle(c *gin.Context) {
 	c.JSON(http.StatusCreated, createVehicleResponse)
 }
 
-// type VehicleData struct {
-// 	UserId                    uint                                 `gorm:"not null" json:"user_id" validate:"required"`
-// 	VehicleName               string                               `gorm:"not null" json:"vehicle_name" validate:"required"`
-// 	VehicleImage              string                               `gorm:"not null" json:"vehicle_image" validate:"required"`
-// 	Year                      string                               `gorm:"not null" json:"year" validate:"required"`
-// 	EngineCapacity            string                               `gorm:"not null" json:"engine_capacity" validate:"required"`
-// 	TankCapacity              string                               `gorm:"not null" json:"tank_capacity" validate:"required"`
-// 	Color                     string                               `gorm:"not null" json:"color" validate:"required"`
-// 	MachineNumber             string                               `gorm:"not null" json:"machine_number" validate:"required"`
-// 	ChassisNumber             string                               `gorm:"not null" json:"chassis_number" validate:"required"`
-// 	VehicleMeasurementLogData []vehicle.VehicleMeasurementLogModel `gorm:"not null" json:"vehicle_measurement_log_data" validate:"required"`
-// }
+type VehicleData struct {
+	UserId                     uint                                 `json:"user_id" gorm:"primary_key"`
+	VehicleName                string                               `json:"vehicle_name"`
+	VehicleImage               string                               `json:"vehicle_image"`
+	Year                       string                               `json:"year"`
+	EngineCapacity             string                               `json:"engine_capacity"`
+	TankCapacity               string                               `json:"tank_capacity"`
+	Color                      string                               `json:"color"`
+	MachineNumber              string                               `json:"machine_number"`
+	ChassisNumber              string                               `json:"chassis_number"`
+	VehicleMeasurementLogModel []vehicle.VehicleMeasurementLogModel `json:"vehicle_measurement_log_models" gorm:"foreignKey:user_id;references:UserId"`
+}
 
 type GetAllVehicleDataResponse struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
-	Data    []vehicle.VehicleModel
+	// Data    []vehicle.VehicleModel
+	Data []VehicleData
 }
 
 func GetAllVehicleData(c *gin.Context) {
@@ -151,13 +152,15 @@ func GetAllVehicleData(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
 			Status:  400,
 			Message: "headers empty",
-			Data:    []vehicle.VehicleModel{},
+			// Data:    []vehicle.VehicleModel{},
+			Data: []VehicleData{},
 		})
 		return
 	}
 
 	db := c.MustGet("db").(*gorm.DB)
-	var vehicleData []vehicle.VehicleModel
+	// var vehicleData []vehicle.VehicleModel
+	var vehicleData []VehicleData
 
 	//--------check id--------check id--------check id--------
 
@@ -186,7 +189,10 @@ func GetAllVehicleData(c *gin.Context) {
 
 	//--------check id--------check id--------check id--------
 
-	result := db.Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
+	// result := db.Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
+	result := db.Preload("VehicleMeasurementLogModel", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, user_id, vehicle_id, measurement_title, current_odo, estimate_odo_changing, amount_expenses, checkpoint_date, notes")
+	}).Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
 
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
@@ -201,7 +207,8 @@ func GetAllVehicleData(c *gin.Context) {
 		c.JSON(http.StatusNotFound, GetAllVehicleDataResponse{
 			Status:  404,
 			Message: "get all vehicle data Failed",
-			Data:    []vehicle.VehicleModel{},
+			Data:    []VehicleData{},
+			// Data:    []vehicle.VehicleModel{},
 		})
 		return
 	}

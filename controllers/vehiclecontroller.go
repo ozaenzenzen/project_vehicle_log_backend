@@ -125,6 +125,138 @@ func CreateVehicle(c *gin.Context) {
 	c.JSON(http.StatusCreated, createVehicleResponse)
 }
 
+type EditVehicleResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+}
+
+type EditVehicleReqeust struct {
+	// UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
+	VehicleName    string `gorm:"not null" json:"vehicle_name" validate:"required"`
+	VehicleImage   string `gorm:"not null" json:"vehicle_image" validate:"required"`
+	Year           string `gorm:"not null" json:"year" validate:"required"`
+	EngineCapacity string `gorm:"not null" json:"engine_capacity" validate:"required"`
+	TankCapacity   string `gorm:"not null" json:"tank_capacity" validate:"required"`
+	Color          string `gorm:"not null" json:"color" validate:"required"`
+	MachineNumber  string `gorm:"not null" json:"machine_number" validate:"required"`
+	ChassisNumber  string `gorm:"not null" json:"chassis_number" validate:"required"`
+}
+
+func EditVehicle(c *gin.Context) {
+	headerid := c.Request.Header.Get("usd")
+
+	if headerid == "" {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: "headers empty",
+		})
+		return
+	}
+	var editVehicleRequest EditVehicleReqeust
+
+	if err := c.ShouldBindJSON(&editVehicleRequest); err != nil {
+		log.Println(fmt.Sprintf("error log: %s", err))
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  500,
+			Message: "Edit Vehicle Failed",
+		})
+		return
+	}
+	validate := validator.New()
+
+	if err := validate.Struct(editVehicleRequest); err != nil {
+		log.Println(fmt.Sprintf("error log2: %s", err))
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: "Edit Vehicle Failed2",
+		})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	//--------check id--------check id--------check id--------
+
+	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  500,
+			Message: "error parsing",
+		})
+		return
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+		ID: iduint,
+	})
+
+	if checkID.Error != nil {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: checkID.Error.Error(),
+		})
+		return
+	}
+
+	//--------check id--------check id--------check id--------
+
+	vehicleDataOutput := vehicle.VehicleModel{
+		UserId:         iduint,
+		VehicleName:    editVehicleRequest.VehicleName,
+		VehicleImage:   editVehicleRequest.VehicleImage,
+		Year:           editVehicleRequest.Year,
+		EngineCapacity: editVehicleRequest.EngineCapacity,
+		TankCapacity:   editVehicleRequest.TankCapacity,
+		Color:          editVehicleRequest.Color,
+		MachineNumber:  editVehicleRequest.MachineNumber,
+		ChassisNumber:  editVehicleRequest.ChassisNumber,
+	}
+
+	editVehicleResponse := EditVehicleResponse{
+		Status:  201,
+		Message: "Vehicle update successfully",
+	}
+
+	if db.Error != nil {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: db.Error.Error(),
+		})
+		return
+	}
+	// result := db.Create(&vehicleDataOutput)
+	result := db.Table("vehicle_models").Where("id = ?", headerid).Update(&vehicleDataOutput)
+
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: result.Error.Error(),
+		})
+		return
+	}
+
+	inputNotifModel := notif.Notification{
+		UserId:                  iduint,
+		NotificationTitle:       "Edit Vehicle",
+		NotificationDescription: "Anda Telah Mengubah Data Kendaraan",
+		NotificationStatus:      0,
+		NotificationType:        0,
+	}
+
+	resultNotif := db.Table("notifications").Create(&inputNotifModel)
+	if resultNotif.Error != nil {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: result.Error.Error() + "Notif error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, editVehicleResponse)
+}
+
 type VehicleData struct {
 	UserId                     uint                                 `json:"user_id" gorm:"primary_key"`
 	VehicleName                string                               `json:"vehicle_name"`

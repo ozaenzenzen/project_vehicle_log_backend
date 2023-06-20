@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"net/http"
+	account "project_vehicle_log_backend/models/account"
 	user "project_vehicle_log_backend/models/account"
+	notif "project_vehicle_log_backend/models/notification"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -186,4 +189,105 @@ func GetUserData(c *gin.Context) {
 			Phone: userData.Phone,
 		},
 	})
+}
+
+type EditProfileRequest struct {
+	ProfilePicture string `json:"profile_picture"`
+	Name           string `json:"name"`
+}
+
+type EditProfileResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+}
+
+func EditProfile(c *gin.Context) {
+	headerid := c.Request.Header.Get("usd")
+
+	if headerid == "" {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  400,
+			Message: "headers empty",
+		})
+		return
+	}
+
+	var editProfileRequest EditProfileRequest
+	if err := c.ShouldBindJSON(&editProfileRequest); err != nil {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  500,
+			Message: err.Error(),
+		})
+		return
+	}
+	db := c.MustGet("db").(*gorm.DB)
+
+	//--------check id--------check id--------check id--------
+
+	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  500,
+			Message: "error parsing",
+		})
+		return
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+		ID: iduint,
+	})
+
+	if checkID.Error != nil {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  400,
+			Message: checkID.Error.Error(),
+		})
+		return
+	}
+
+	//--------check id--------check id--------check id--------
+
+	editProfileResponse := EditVehicleResponse{
+		Status:  201,
+		Message: "Edit profile success",
+	}
+
+	if db.Error != nil {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  400,
+			Message: db.Error.Error(),
+		})
+		return
+	}
+	// result := db.Create(&vehicleDataOutput)
+	result := db.Table("account_user_models").Where("id = ?", headerid).Update(&editProfileRequest)
+
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  400,
+			Message: result.Error.Error(),
+		})
+		return
+	}
+
+	inputNotifModel := notif.Notification{
+		UserId:                  iduint,
+		NotificationTitle:       "Edit Profile",
+		NotificationDescription: "Anda Telah Mengubah Data Profile",
+		NotificationStatus:      0,
+		NotificationType:        0,
+	}
+
+	resultNotif := db.Table("notifications").Create(&inputNotifModel)
+	if resultNotif.Error != nil {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: result.Error.Error() + "Notif error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, editProfileResponse)
 }

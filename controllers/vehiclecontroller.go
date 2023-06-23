@@ -258,16 +258,30 @@ func EditVehicle(c *gin.Context) {
 }
 
 type VehicleData struct {
-	UserId                     uint                                 `json:"user_id" gorm:"primary_key"`
-	VehicleName                string                               `json:"vehicle_name"`
-	VehicleImage               string                               `json:"vehicle_image"`
-	Year                       string                               `json:"year"`
-	EngineCapacity             string                               `json:"engine_capacity"`
-	TankCapacity               string                               `json:"tank_capacity"`
-	Color                      string                               `json:"color"`
-	MachineNumber              string                               `json:"machine_number"`
-	ChassisNumber              string                               `json:"chassis_number"`
-	VehicleMeasurementLogModel []vehicle.VehicleMeasurementLogModel `json:"vehicle_measurement_log_models" gorm:"foreignKey:user_id;references:UserId"`
+	Id             uint   `json:"id" gorm:"primary_key"`
+	UserId         uint   `json:"user_id"`
+	VehicleName    string `json:"vehicle_name"`
+	VehicleImage   string `json:"vehicle_image"`
+	Year           string `json:"year"`
+	EngineCapacity string `json:"engine_capacity"`
+	TankCapacity   string `json:"tank_capacity"`
+	Color          string `json:"color"`
+	MachineNumber  string `json:"machine_number"`
+	ChassisNumber  string `json:"chassis_number"`
+	// VehicleMeasurementLogModel []vehicle.VehicleMeasurementLogModel `json:"vehicle_measurement_log_models" gorm:"foreignKey:user_id;references:UserId"`
+	VehicleMeasurementLogModels []VehicleMeasurementLogModel `json:"vehicle_measurement_log_models" gorm:"foreignKey:vehicle_id;references:Id"`
+}
+
+type VehicleMeasurementLogModel struct {
+	Id                  uint   `json:"id" `
+	UserId              uint   `json:"user_id"`
+	VehicleId           uint   `json:"vehicle_id"`
+	MeasurementTitle    string `json:"measurement_title"`
+	CurrentOdo          string `json:"current_odo"`
+	EstimateOdoChanging string `json:"estimate_odo_changing"`
+	AmountExpenses      string `json:"amount_expenses"`
+	CheckpointDate      string `json:"checkpoint_date"`
+	Notes               string `json:"notes"`
 }
 
 type GetAllVehicleDataResponse struct {
@@ -321,8 +335,7 @@ func GetAllVehicleData(c *gin.Context) {
 
 	//--------check id--------check id--------check id--------
 
-	// result := db.Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
-	result := db.Preload("VehicleMeasurementLogModel", func(db *gorm.DB) *gorm.DB {
+	result := db.Preload("VehicleMeasurementLogModels", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, user_id, vehicle_id, measurement_title, current_odo, estimate_odo_changing, amount_expenses, checkpoint_date, notes")
 	}).Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
 

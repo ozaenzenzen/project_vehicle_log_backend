@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	account "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
@@ -273,15 +274,17 @@ type VehicleData struct {
 }
 
 type VehicleMeasurementLogModel struct {
-	Id                  uint   `json:"id" `
-	UserId              uint   `json:"user_id"`
-	VehicleId           uint   `json:"vehicle_id"`
-	MeasurementTitle    string `json:"measurement_title"`
-	CurrentOdo          string `json:"current_odo"`
-	EstimateOdoChanging string `json:"estimate_odo_changing"`
-	AmountExpenses      string `json:"amount_expenses"`
-	CheckpointDate      string `json:"checkpoint_date"`
-	Notes               string `json:"notes"`
+	Id                  uint      `json:"id" `
+	UserId              uint      `json:"user_id"`
+	VehicleId           uint      `json:"vehicle_id"`
+	MeasurementTitle    string    `json:"measurement_title"`
+	CurrentOdo          string    `json:"current_odo"`
+	EstimateOdoChanging string    `json:"estimate_odo_changing"`
+	AmountExpenses      string    `json:"amount_expenses"`
+	CheckpointDate      string    `json:"checkpoint_date"`
+	Notes               string    `json:"notes"`
+	CreatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
 type GetAllVehicleDataResponse struct {
@@ -336,7 +339,7 @@ func GetAllVehicleData(c *gin.Context) {
 	//--------check id--------check id--------check id--------
 
 	result := db.Preload("VehicleMeasurementLogModels", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id, user_id, vehicle_id, measurement_title, current_odo, estimate_odo_changing, amount_expenses, checkpoint_date, notes")
+		return db.Select("id, user_id, vehicle_id, measurement_title, current_odo, estimate_odo_changing, amount_expenses, checkpoint_date, notes, created_at, updated_at")
 	}).Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
 
 	if result.Error != nil {

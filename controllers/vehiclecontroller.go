@@ -96,7 +96,19 @@ func CreateVehicle(c *gin.Context) {
 		})
 		return
 	}
-	result := db.Create(&vehicleData)
+	// result := db.Create(&vehicleData)
+	result := db.FirstOrCreate(&vehicleData, vehicle.VehicleModel{
+		MachineNumber: vehicleInput.MachineNumber,
+		ChassisNumber: vehicleInput.ChassisNumber,
+	})
+
+	if result.Value == nil && result.RowsAffected == 0 {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  400,
+			Message: "Record found",
+		})
+		return
+	}
 
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, CreateVehicleResponse{

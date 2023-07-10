@@ -1,15 +1,58 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	account "project_vehicle_log_backend/models/account"
 	user "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
 	"strconv"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
+
+func generateJWTToken() (string, error) {
+	// Create a new token object
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	// Set the claims for the token
+	claims := token.Claims.(jwt.MapClaims)
+	claims["username"] = "JohnDoe"
+	claims["exp"] = time.Now().Add(time.Hour * 1).Unix() // Token expires in 1 hour
+
+	// Generate the token string
+	tokenString, err := token.SignedString([]byte("ozaenzenzen"))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func verifyToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing algorithm is HMAC with SHA-256
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Provide the secret key used for signing the token
+		return []byte("ozaenzenzen"), nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return true, nil
+	}
+
+	return false, nil
+}
 
 type AccountSingUpResponse struct {
 	Status  int                           `json:"status"`
@@ -101,6 +144,7 @@ type UserDataModelSignIn struct {
 	Phone    string `json:"phone"`
 	Link     string `json:"link"`
 	Typeuser uint   `json:"typeuser"`
+	Token    string `json:"token"`
 }
 
 type AccountUserSignInRequest struct {
@@ -136,6 +180,21 @@ func SignInAccount(c *gin.Context) {
 		return
 	}
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"email": dataUser.Email,
+		"exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
+	})
+
+	tokenString, err := token.SignedString([]byte("ozaenzenzen"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
+			Status:   http.StatusInternalServerError,
+			Message:  "Failed to generate token",
+			UserData: nil,
+		})
+		return
+	}
+
 	accountSignInResponse := AccountUserSignInResponse{
 		Status:  200,
 		Message: "Account SignIn Successfully",
@@ -145,6 +204,7 @@ func SignInAccount(c *gin.Context) {
 			Name:  dataUser.Name,
 			Email: dataUser.Email,
 			Phone: dataUser.Phone,
+			Token: tokenString,
 		},
 	}
 
@@ -168,6 +228,16 @@ type AccountUserGetUserResponse struct {
 
 func GetUserData(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
+	headertoken := c.Request.Header.Get("token")
+
+	if headertoken == "" {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: "token empty",
+		})
+		return
+	}
+
 	var userData user.AccountUserModel
 
 	if err := db.Where("id = ?", c.Param("id")).First(&userData).Error; err != nil {
@@ -179,16 +249,29 @@ func GetUserData(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, AccountUserGetUserResponse{
-		Status:  200,
-		Message: "get user data success",
-		UserData: &UserDataModel{
-			ID:    userData.ID,
-			Name:  userData.Name,
-			Email: userData.Email,
-			Phone: userData.Phone,
-		},
-	})
+	isValid, err := verifyToken(headertoken)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
+			Status:   http.StatusBadRequest,
+			Message:  err.Error(),
+			UserData: nil,
+		})
+		return
+	}
+
+	if isValid == true {
+		c.JSON(http.StatusOK, AccountUserGetUserResponse{
+			Status:  200,
+			Message: "get user data success",
+			UserData: &UserDataModel{
+				ID:    userData.ID,
+				Name:  userData.Name,
+				Email: userData.Email,
+				Phone: userData.Phone,
+			},
+		})
+	}
+
 }
 
 type EditProfileRequest struct {

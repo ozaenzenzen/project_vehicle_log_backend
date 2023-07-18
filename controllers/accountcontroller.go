@@ -98,13 +98,13 @@ func SignUpAccount(c *gin.Context) {
 }
 
 type UserDataModelSignIn struct {
-	ID       uint   `json:"id" gorm:"primary_key"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Link     string `json:"link"`
-	Typeuser uint   `json:"typeuser"`
-	Token    string `json:"token"`
+	ID    uint   `json:"id" gorm:"primary_key"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Phone string `json:"phone"`
+	// Link     string `json:"link"`
+	// Typeuser uint   `json:"typeuser"`
+	Token string `json:"token"`
 }
 
 type AccountUserSignInRequest struct {
@@ -246,11 +246,20 @@ type EditProfileResponse struct {
 
 func EditProfile(c *gin.Context) {
 	headerid := c.Request.Header.Get("usd")
-
 	if headerid == "" {
 		c.JSON(http.StatusBadRequest, EditProfileResponse{
 			Status:  400,
 			Message: "headers empty",
+		})
+		return
+	}
+
+	headertoken := c.Request.Header.Get("token")
+
+	if headertoken == "" {
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			Status:  400,
+			Message: "token empty",
 		})
 		return
 	}
@@ -292,9 +301,13 @@ func EditProfile(c *gin.Context) {
 
 	//--------check id--------check id--------check id--------
 
-	editProfileResponse := EditVehicleResponse{
-		Status:  201,
-		Message: "Edit profile success",
+	isValid, err := jwthelper.VerifyToken(headertoken)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, EditProfileResponse{
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
 	}
 
 	if db.Error != nil {
@@ -332,5 +345,13 @@ func EditProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, editProfileResponse)
+	editProfileResponse := EditVehicleResponse{
+		Status:  201,
+		Message: "Edit profile success",
+	}
+
+	if isValid == true {
+		c.JSON(http.StatusOK, editProfileResponse)
+		return
+	}
 }

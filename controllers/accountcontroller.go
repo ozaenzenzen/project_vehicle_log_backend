@@ -133,7 +133,7 @@ func SignInAccount(c *gin.Context) {
 	if err := db.Where("email = ?", dataUser.Email).Where("password = ?", dataUser.Password).First(&dataUser).Error; err != nil {
 		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
 			Status:  404,
-			Message: "Account SignIn Failed",
+			Message: "Account not match",
 			// Typeuser: nil,
 			UserData: nil,
 		})
@@ -200,7 +200,19 @@ func GetUserData(c *gin.Context) {
 
 	var userData user.AccountUserModel
 
-	if err := db.Where("id = ?", c.Param("id")).First(&userData).Error; err != nil {
+	tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
+	// fmt.Printf("\ntoken raw %v", tokenRaw)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
+			Status:   http.StatusBadRequest,
+			Message:  err.Error(),
+			UserData: nil,
+		})
+		return
+	}
+
+	// if err := db.Where("id = ?", c.Param("id")).First(&userData).Error; err != nil {
+	if err := db.Where("email = ?", tokenRaw).First(&userData).Error; err != nil {
 		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
 			Status:   400,
 			Message:  "User Data Not Found",

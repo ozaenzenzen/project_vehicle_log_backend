@@ -9,7 +9,22 @@ import (
 
 var key string = "ozaenzenzen"
 
-func GenerateJWTToken() (string, error) {
+func GenerateJWTToken(uid string, email string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid":   uid,
+		"email": email,
+		"exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
+	})
+
+	tokenString, err := token.SignedString([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func GenerateJWTTokenOld() (string, error) {
 	// Create a new token object
 	token := jwt.New(jwt.SigningMethodHS256)
 
@@ -27,7 +42,20 @@ func GenerateJWTToken() (string, error) {
 	return tokenString, nil
 }
 
-func DecodeJWTToken(tokenString string) (string, error) {
+func DecodeJWTToken(tokenString string) (jwt.MapClaims, error) {
+	// return token.Raw, err
+	hmacSecret := []byte(key)
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return hmacSecret, nil
+	})
+	if err != nil {
+		return nil, nil
+	}
+	return token.Claims.(jwt.MapClaims), err
+}
+
+func DecodeJWTTokenForEmail(tokenString string) (string, error) {
 	// return token.Raw, err
 	claims := jwt.MapClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {

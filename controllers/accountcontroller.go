@@ -7,9 +7,7 @@ import (
 	user "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
 	"strconv"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
@@ -140,12 +138,16 @@ func SignInAccount(c *gin.Context) {
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"email": dataUser.Email,
-		"exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
-	})
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	// 	"uid":   dataUser.ID,
+	// 	"email": dataUser.Email,
+	// 	"exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
+	// })
 
-	tokenString, err := token.SignedString([]byte("ozaenzenzen"))
+	// tokenString, err := token.SignedString([]byte("ozaenzenzen"))
+
+	tokenString, err := jwthelper.GenerateJWTToken(strconv.FormatUint(uint64(dataUser.ID), 10), dataUser.Email)
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
 			Status:   http.StatusInternalServerError,
@@ -197,41 +199,43 @@ func GetUserData(c *gin.Context) {
 		})
 		return
 	}
-
-	var userData user.AccountUserModel
-
-	tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
-	// fmt.Printf("\ntoken raw %v", tokenRaw)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-			Status:   http.StatusBadRequest,
-			Message:  err.Error(),
-			UserData: nil,
-		})
-		return
-	}
-
-	// if err := db.Where("id = ?", c.Param("id")).First(&userData).Error; err != nil {
-	if err := db.Where("email = ?", tokenRaw).First(&userData).Error; err != nil {
-		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-			Status:   400,
-			Message:  "User Data Not Found",
-			UserData: nil,
-		})
-		return
-	}
-
 	isValid, err := jwthelper.VerifyToken(headertoken)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-			Status:   http.StatusBadRequest,
-			Message:  err.Error(),
-			UserData: nil,
-		})
-		return
-	}
 
 	if isValid == true {
+		if err != nil {
+			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
+				Status:   http.StatusBadRequest,
+				Message:  err.Error(),
+				UserData: nil,
+			})
+			return
+		}
+
+		var userData user.AccountUserModel
+
+		tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
+		// fmt.Printf("\ntoken raw %v", tokenRaw)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
+				Status:   http.StatusBadRequest,
+				Message:  err.Error(),
+				UserData: nil,
+			})
+			return
+		}
+
+		emails := tokenRaw["email"].(string)
+
+		// if err := db.Where("id = ?", c.Param("id")).First(&userData).Error; err != nil {
+		if err := db.Where("email = ?", emails).First(&userData).Error; err != nil {
+			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
+				Status:   400,
+				Message:  "User Data Not Found",
+				UserData: nil,
+			})
+			return
+		}
+
 		c.JSON(http.StatusOK, AccountUserGetUserResponse{
 			Status:  200,
 			Message: "get user data success",
@@ -242,6 +246,14 @@ func GetUserData(c *gin.Context) {
 				Phone: userData.Phone,
 			},
 		})
+		return
+	} else {
+		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
+			Status:   http.StatusBadRequest,
+			Message:  "invalid token",
+			UserData: nil,
+		})
+		return
 	}
 
 }

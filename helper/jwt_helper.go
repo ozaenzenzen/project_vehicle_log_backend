@@ -7,6 +7,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+var key string = "ozaenzenzen"
+
 func GenerateJWTToken() (string, error) {
 	// Create a new token object
 	token := jwt.New(jwt.SigningMethodHS256)
@@ -17,12 +19,32 @@ func GenerateJWTToken() (string, error) {
 	claims["exp"] = time.Now().Add(time.Hour * 1).Unix() // Token expires in 1 hour
 
 	// Generate the token string
-	tokenString, err := token.SignedString([]byte("ozaenzenzen"))
+	tokenString, err := token.SignedString([]byte(key))
 	if err != nil {
 		return "", err
 	}
 
 	return tokenString, nil
+}
+
+func DecodeJWTToken(tokenString string) (string, error) {
+	// return token.Raw, err
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(key), nil
+	})
+	if err != nil {
+		return "", nil
+	}
+	// ... error handling
+
+	// // do something with decoded claims
+	// for key, val := range claims {
+	// 	fmt.Printf("Token: %v\n", token)
+	// 	fmt.Printf("Key: %v, value: %v\n", key, val)
+	// }
+
+	return token.Claims.(jwt.MapClaims)["email"].(string), err
 }
 
 func VerifyToken(tokenString string) (bool, error) {
@@ -33,7 +55,7 @@ func VerifyToken(tokenString string) (bool, error) {
 		}
 
 		// Provide the secret key used for signing the token
-		return []byte("ozaenzenzen"), nil
+		return []byte(key), nil
 	})
 
 	if err != nil {

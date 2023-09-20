@@ -269,6 +269,27 @@ type EditProfileResponse struct {
 	Message string `json:"message"`
 }
 
+func checkIDHelper(c *gin.Context, db *gorm.DB, ids string, out interface{}) error {
+	//--------check id--------check id--------check id--------
+	iduint64, err := strconv.ParseUint(ids, 10, 32)
+
+	if err != nil {
+		return err
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", ids).Find(&account.AccountUserModel{
+		ID: iduint,
+	})
+
+	if checkID.Error != nil {
+
+		return checkID.Error
+	}
+	//--------check id--------check id--------check id--------
+	return nil
+}
+
 func EditProfile(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
@@ -298,12 +319,11 @@ func EditProfile(c *gin.Context) {
 			return
 		}
 		tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
-		fmt.Printf("\ntoken raw %v", tokenRaw)
+		// fmt.Printf("\ntoken raw %v", tokenRaw)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-				Status:   http.StatusBadRequest,
-				Message:  err.Error(),
-				UserData: nil,
+			c.JSON(http.StatusBadRequest, EditProfileResponse{
+				Status:  http.StatusBadRequest,
+				Message: err.Error(),
 			})
 			return
 		}
@@ -373,7 +393,7 @@ func EditProfile(c *gin.Context) {
 		}
 
 		editProfileResponse := EditProfileResponse{
-			Status:  201,
+			Status:  http.StatusAccepted,
 			Message: "Edit profile success",
 		}
 

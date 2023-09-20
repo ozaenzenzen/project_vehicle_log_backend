@@ -131,7 +131,7 @@ func SignInAccount(c *gin.Context) {
 	var dataUser AccountUserSignInRequest
 	if err := c.ShouldBindJSON(&dataUser); err != nil {
 		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
-			Status:  500,
+			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
@@ -142,7 +142,7 @@ func SignInAccount(c *gin.Context) {
 	// log.Println(fmt.Sprintf("log signin Value: %s", result.Value))
 	if result.Error != nil {
 		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
-			Status:   404,
+			Status:   http.StatusNotFound,
 			Message:  "Account not match",
 			UserData: nil,
 		})

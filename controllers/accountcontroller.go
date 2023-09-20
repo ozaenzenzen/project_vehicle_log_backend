@@ -176,19 +176,17 @@ func SignInAccount(c *gin.Context) {
 	c.JSON(http.StatusOK, accountSignInResponse)
 }
 
-type UserDataModel struct {
-	ID       uint   `json:"id" gorm:"primary_key"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Link     string `json:"link"`
-	Typeuser uint   `json:"typeuser"`
+type GetUserDataModel struct {
+	ID    uint   `json:"id" gorm:"primary_key"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Phone string `json:"phone"`
 }
 
 type AccountUserGetUserResponse struct {
-	Status   int            `json:"status"`
-	Message  string         `json:"message"`
-	UserData *UserDataModel `json:"userdata"`
+	Status   int               `json:"status"`
+	Message  string            `json:"message"`
+	UserData *GetUserDataModel `json:"userdata"`
 }
 
 func GetUserData(c *gin.Context) {
@@ -196,7 +194,7 @@ func GetUserData(c *gin.Context) {
 	headertoken := c.Request.Header.Get("token")
 
 	if headertoken == "" {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
 			Status:  400,
 			Message: "token empty",
 		})
@@ -242,7 +240,7 @@ func GetUserData(c *gin.Context) {
 		c.JSON(http.StatusOK, AccountUserGetUserResponse{
 			Status:  200,
 			Message: "get user data success",
-			UserData: &UserDataModel{
+			UserData: &GetUserDataModel{
 				ID:    userData.ID,
 				Name:  userData.Name,
 				Email: userData.Email,

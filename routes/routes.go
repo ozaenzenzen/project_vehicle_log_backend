@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"net/http"
 	"project_vehicle_log_backend/controllers"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,19 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	// r.POST("/event/submitevent", controllers.SubmitEvent)
 	// r.GET("/event/getlistvolunteers/:id", controllers.GetListVolunteer) //event id
 	r.GET("/notifications/:id", controllers.GetNotificationByUserId) //user id
+
+	r.NoRoute(func(c *gin.Context) {
+		// response := map[string]interface{}{
+		// 	"status":  404,
+		// 	"message": "Page not found",
+		// }
+		// c.JSON(http.StatusNotFound, response)
+		c.JSON(http.StatusNotFound, gin.H{
+			"status":  http.StatusNotFound,
+			"message": "Page not found",
+		})
+		return
+	})
 
 	return r
 }

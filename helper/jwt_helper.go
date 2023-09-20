@@ -13,8 +13,8 @@ func GenerateJWTToken(uid string, email string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid":   uid,
 		"email": email,
-		"exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
-		// "exp": time.Now().Add(time.Minute * 2).Unix(), // Token expires in 168 hour or 1 week
+		// "exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
+		"exp": time.Now().Add(time.Minute * 5).Unix(), // Token expires in 168 hour or 1 week
 	})
 
 	tokenString, err := token.SignedString([]byte(key))

@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	jwthelper "project_vehicle_log_backend/helper"
 	account "project_vehicle_log_backend/models/account"
@@ -9,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator"
 	"github.com/jinzhu/gorm"
 )
 
@@ -20,31 +23,42 @@ type AccountSingUpResponse struct {
 
 // ID       uint   `json:"id"`
 type AccountUserData struct {
-	Name            string `json:"name"`
-	Email           string `json:"email"`
-	Phone           string `json:"phone"`
-	Link            string `json:"link"`
-	Typeuser        uint   `json:"typeuser"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirmPassword"`
+	Name            string `gorm:"not null" json:"name"  binding:"required,max=30"`
+	Email           string `gorm:"not null" json:"email" binding:"required"`
+	Phone           string `gorm:"not null" json:"phone"  binding:"required,max=14"`
+	Password        string `gorm:"not null" json:"password" binding:"required"`
+	ConfirmPassword string `gorm:"not null" json:"confirmPassword" binding:"required"`
 }
 
 type AccountUserDataResponseModel struct {
-	UserId   uint   `json:"user_id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Link     string `json:"link"`
-	Typeuser uint   `json:"typeuser"`
+	UserId uint   `json:"user_id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Phone  string `json:"phone"`
 }
 
 func SignUpAccount(c *gin.Context) {
 	var accountInput AccountUserData
 	if err := c.ShouldBindJSON(&accountInput); err != nil {
+		// log.Println(fmt.Sprintf("error logX: %s", err))
+		// log.Println(fmt.Sprintf("error logX1: %s", err.Error()))
+
 		c.JSON(http.StatusBadRequest, AccountSingUpResponse{
 			Status:  500,
 			Message: err.Error(),
-			Data:    &AccountUserDataResponseModel{},
+			Data:    nil,
+		})
+		return
+	}
+
+	validate := validator.New()
+
+	if err := validate.Struct(accountInput); err != nil {
+		log.Println(fmt.Sprintf("error log2: %s", err))
+		c.JSON(http.StatusBadRequest, AccountSingUpResponse{
+			Status:  500,
+			Message: "Data tidak lengkap",
+			Data:    nil,
 		})
 		return
 	}
@@ -83,12 +97,10 @@ func SignUpAccount(c *gin.Context) {
 		Status:  201,
 		Message: "Account created successfully",
 		Data: &AccountUserDataResponseModel{
-			UserId:   accountResponsePayload.ID,
-			Name:     accountInput.Name,
-			Email:    accountInput.Email,
-			Phone:    accountInput.Phone,
-			Link:     accountInput.Link,
-			Typeuser: accountInput.Typeuser,
+			UserId: accountResponsePayload.ID,
+			Name:   accountInput.Name,
+			Email:  accountInput.Email,
+			Phone:  accountInput.Phone,
 		},
 	}
 
@@ -100,8 +112,6 @@ type UserDataModelSignIn struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 	Phone string `json:"phone"`
-	// Link     string `json:"link"`
-	// Typeuser uint   `json:"typeuser"`
 	Token string `json:"token"`
 }
 
@@ -111,9 +121,8 @@ type AccountUserSignInRequest struct {
 }
 
 type AccountUserSignInResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	// Typeuser *uint  `json:"typeuser"`
+	Status   int                  `json:"status"`
+	Message  string               `json:"message"`
 	UserData *UserDataModelSignIn `json:"userdata"`
 }
 

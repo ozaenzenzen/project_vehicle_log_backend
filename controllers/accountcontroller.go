@@ -116,8 +116,8 @@ type UserDataModelSignIn struct {
 }
 
 type AccountUserSignInRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `gorm:"not null" json:"email"  binding:"required"`
+	Password string `gorm:"not null" json:"password"  binding:"required"`
 }
 
 type AccountUserSignInResponse struct {
@@ -127,7 +127,8 @@ type AccountUserSignInResponse struct {
 }
 
 func SignInAccount(c *gin.Context) {
-	var dataUser user.AccountUserModel
+	var table user.AccountUserModel
+	var dataUser AccountUserSignInRequest
 	if err := c.ShouldBindJSON(&dataUser); err != nil {
 		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
 			Status:  500,
@@ -137,25 +138,18 @@ func SignInAccount(c *gin.Context) {
 	}
 	db := c.MustGet("db").(*gorm.DB)
 
-	if err := db.Where("email = ?", dataUser.Email).Where("password = ?", dataUser.Password).First(&dataUser).Error; err != nil {
+	result := db.Where("email = ?", dataUser.Email).Where("password = ?", dataUser.Password).First(&table)
+	// log.Println(fmt.Sprintf("log signin Value: %s", result.Value))
+	if result.Error != nil {
 		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
-			Status:  404,
-			Message: "Account not match",
-			// Typeuser: nil,
+			Status:   404,
+			Message:  "Account not match",
 			UserData: nil,
 		})
 		return
 	}
 
-	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-	// 	"uid":   dataUser.ID,
-	// 	"email": dataUser.Email,
-	// 	"exp":   time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
-	// })
-
-	// tokenString, err := token.SignedString([]byte("ozaenzenzen"))
-
-	tokenString, err := jwthelper.GenerateJWTToken(strconv.FormatUint(uint64(dataUser.ID), 10), dataUser.Email)
+	tokenString, err := jwthelper.GenerateJWTToken(strconv.FormatUint(uint64(table.ID), 10), dataUser.Email)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
@@ -171,10 +165,10 @@ func SignInAccount(c *gin.Context) {
 		Message: "Account SignIn Successfully",
 		// Typeuser: &dataUser.Typeuser,
 		UserData: &UserDataModelSignIn{
-			ID:    dataUser.ID,
-			Name:  dataUser.Name,
+			ID:    table.ID,
+			Name:  table.Name,
 			Email: dataUser.Email,
-			Phone: dataUser.Phone,
+			Phone: table.Phone,
 			Token: tokenString,
 		},
 	}

@@ -174,6 +174,7 @@ type EditVehicleResponse struct {
 
 type EditVehicleReqeust struct {
 	// UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
+	VehicleId      uint   `gorm:"not null" json:"vehicle_id" validate:"required"`
 	VehicleName    string `gorm:"not null" json:"vehicle_name" validate:"required"`
 	VehicleImage   string `gorm:"not null" json:"vehicle_image" validate:"required"`
 	Year           string `gorm:"not null" json:"year" validate:"required"`
@@ -185,15 +186,27 @@ type EditVehicleReqeust struct {
 }
 
 func EditVehicle(c *gin.Context) {
-	headerid := c.Request.Header.Get("usd")
+	db := c.MustGet("db").(*gorm.DB)
+	headertoken := c.Request.Header.Get("token")
+	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
-	if headerid == "" {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
-			Status:  400,
-			Message: "headers empty",
+	if err != nil {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
 		})
 		return
 	}
+	if isValid == false {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid token",
+		})
+		return
+	}
+
+	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
+
 	var editVehicleRequest EditVehicleReqeust
 
 	if err := c.ShouldBindJSON(&editVehicleRequest); err != nil {
@@ -210,16 +223,14 @@ func EditVehicle(c *gin.Context) {
 		log.Println(fmt.Sprintf("error log2: %s", err))
 		c.JSON(http.StatusBadRequest, EditVehicleResponse{
 			Status:  400,
-			Message: "Edit Vehicle Failed2",
+			Message: "validate error, field required",
 		})
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
 	//--------check id--------check id--------check id--------
 
-	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, EditVehicleResponse{
@@ -230,7 +241,7 @@ func EditVehicle(c *gin.Context) {
 	}
 	iduint := uint(iduint64)
 
-	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+	checkID := db.Table("account_user_models").Where("id = ?", returnEmailsOrUid).Find(&account.AccountUserModel{
 		ID: iduint,
 	})
 
@@ -268,9 +279,10 @@ func EditVehicle(c *gin.Context) {
 		})
 		return
 	}
-	// result := db.Create(&vehicleDataOutput)
-	result := db.Table("vehicle_models").Where("id = ?", headerid).Update(&vehicleDataOutput)
 
+	result := db.Table("vehicle_models").Where("id = ?", editVehicleRequest.VehicleId).Where("user_id = ?", returnEmailsOrUid).Update(&vehicleDataOutput)
+	log.Println(fmt.Sprintf("result Value1: %s", result.Value))
+	log.Println(fmt.Sprintf("result RowsAffected1: %d", result.RowsAffected))
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, EditVehicleResponse{
 			Status:  400,

@@ -22,7 +22,7 @@ type CreateVehicleResponse struct {
 	Message string `json:"message"`
 }
 
-type CreateVehicleReqeust struct {
+type CreateVehicleRequest struct {
 	UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
 	VehicleName    string `gorm:"not null" json:"vehicle_name" validate:"required"`
 	VehicleImage   string `gorm:"not null" json:"vehicle_image" validate:"required"`
@@ -35,7 +35,7 @@ type CreateVehicleReqeust struct {
 }
 
 func CreateVehicle(c *gin.Context) {
-	var vehicleInput CreateVehicleReqeust
+	var vehicleInput CreateVehicleRequest
 	if err := c.ShouldBindJSON(&vehicleInput); err != nil {
 		log.Println(fmt.Sprintf("error log: %s", err))
 		c.JSON(http.StatusBadRequest, CreateVehicleResponse{

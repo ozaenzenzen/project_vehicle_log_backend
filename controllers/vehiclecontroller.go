@@ -459,14 +459,14 @@ func GetAllVehicleData(c *gin.Context) {
 }
 
 type CreateLogVehicleRequest struct {
-	UserId              uint   `json:"user_id"`
-	VehicleId           uint   `json:"vehicle_id"`
-	MeasurementTitle    string `json:"measurement_title"`
-	CurrentOdo          string `json:"current_odd"`
-	EstimateOdoChanging string `json:"estimate_odo_changing"`
-	AmountExpenses      string `json:"amount_expenses"`
-	CheckpointDate      string `json:"checkpoint_date"`
-	Notes               string `json:"notes"`
+	// UserId              uint   `gorm:"not null" json:"user_id" validate:"required"`
+	VehicleId           uint   `gorm:"not null" json:"vehicle_id" validate:"required"`
+	MeasurementTitle    string `gorm:"not null" json:"measurement_title" validate:"required"`
+	CurrentOdo          string `gorm:"not null" json:"current_odd" validate:"required"`
+	EstimateOdoChanging string `gorm:"not null" json:"estimate_odo_changing" validate:"required"`
+	AmountExpenses      string `gorm:"not null" json:"amount_expenses" validate:"required"`
+	CheckpointDate      string `gorm:"not null" json:"checkpoint_date" validate:"required"`
+	Notes               string `gorm:"not null" json:"notes" validate:"required"`
 }
 type CreateLogVehicleResponse struct {
 	Status  int    `json:"status"`
@@ -474,14 +474,93 @@ type CreateLogVehicleResponse struct {
 }
 
 func CreateLogVehicle(c *gin.Context) {
-	var createLogVehicle CreateLogVehicleRequest
-	if err := c.ShouldBindJSON(&createLogVehicle); err != nil {
-		log.Println(fmt.Sprintf("error log JoinEvent1: %s", err))
+	db := c.MustGet("db").(*gorm.DB)
+	headertoken := c.Request.Header.Get("token")
+	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
+
+	if err != nil {
 		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
-			Status:  500,
-			Message: "Create Log Vehicle Failed1",
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
 		})
 		return
+	}
+	if isValid == false {
+		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid token",
+		})
+		return
+	}
+
+	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
+
+	var createLogVehicle CreateLogVehicleRequest
+	if err := c.ShouldBindJSON(&createLogVehicle); err != nil {
+		log.Println(fmt.Sprintf("error log CreateLogVehicleResponse: %s", err))
+		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+			Status:  http.StatusBadRequest,
+			Message: "data required",
+		})
+		return
+	}
+
+	//--------check id--------check id--------check id--------
+
+	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+			Status:  500,
+			Message: "error parsing",
+		})
+		return
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", returnEmailsOrUid).Find(&account.AccountUserModel{
+		ID: iduint,
+	})
+
+	if checkID.Error != nil {
+		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+			Status:  400,
+			Message: checkID.Error.Error(),
+		})
+		return
+	}
+
+	//--------check id--------check id--------check id--------
+
+	var checkVehicleRelateWithId vehicle.VehicleModel
+	if err := db.Where("id = ?", createLogVehicle.VehicleId).First(&checkVehicleRelateWithId).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			log.Println(fmt.Printf("Vehicle with ID %d not found.\n", createLogVehicle.VehicleId))
+			c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+				Status:  http.StatusBadRequest,
+				Message: err.Error(),
+			})
+			return
+		} else {
+			log.Println("Error while querying the database.")
+			c.JSON(http.StatusInternalServerError, CreateLogVehicleResponse{
+				Status:  http.StatusInternalServerError,
+				Message: err.Error(),
+			})
+			return
+		}
+	} else {
+		log.Println(fmt.Printf("Vehicle with ID %d is associated with User ID %d.\n", createLogVehicle.VehicleId, checkVehicleRelateWithId.UserId))
+		if checkVehicleRelateWithId.UserId != iduint {
+			log.Println(fmt.Printf("Tidak sama userid"))
+			c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+				Status:  http.StatusBadRequest,
+				Message: "User tidak valid dengan data kendaraan",
+			})
+			return
+		} else {
+			log.Println(fmt.Printf("userid sama"))
+		}
 	}
 
 	createLogVehicleResponse := CreateLogVehicleResponse{
@@ -490,7 +569,7 @@ func CreateLogVehicle(c *gin.Context) {
 	}
 
 	createLogVehicleData := vehicle.VehicleMeasurementLogModel{
-		UserId:              createLogVehicle.UserId,
+		UserId:              iduint,
 		VehicleId:           createLogVehicle.VehicleId,
 		MeasurementTitle:    createLogVehicle.MeasurementTitle,
 		CurrentOdo:          createLogVehicle.CurrentOdo,
@@ -505,7 +584,6 @@ func CreateLogVehicle(c *gin.Context) {
 	// 2: rejected
 	// 3: waiting response
 
-	db := c.MustGet("db").(*gorm.DB)
 	if db.Error != nil {
 		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
 			Status:  400,
@@ -534,7 +612,7 @@ func CreateLogVehicle(c *gin.Context) {
 		return
 	}
 	inputNotifModel := notif.Notification{
-		UserId:                  createLogVehicle.UserId,
+		UserId:                  iduint,
 		NotificationTitle:       "Add Vehicle Log",
 		NotificationDescription: "Anda Telah Menambahkan Log Kendaraan",
 		NotificationStatus:      0,

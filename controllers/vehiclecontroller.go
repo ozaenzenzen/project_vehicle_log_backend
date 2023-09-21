@@ -501,23 +501,31 @@ type GetLogVehicleResponse struct {
 }
 
 func GetLogVehicle(c *gin.Context) {
-	headerid := c.Request.Header.Get("usd")
+	db := c.MustGet("db").(*gorm.DB)
+	headertoken := c.Request.Header.Get("token")
+	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
-	if headerid == "" {
-		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
-			Status:  400,
-			Message: "headers empty",
-			Data:    []vehicle.VehicleMeasurementLogModel{},
+	if err != nil {
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+	if isValid == false {
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid token",
 		})
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
+	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 	var logVehicleData []vehicle.VehicleMeasurementLogModel
 
 	//--------check id--------check id--------check id--------
 
-	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
@@ -528,7 +536,7 @@ func GetLogVehicle(c *gin.Context) {
 	}
 	iduint := uint(iduint64)
 
-	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+	checkID := db.Table("account_user_models").Where("id = ?", returnEmailsOrUid).Find(&account.AccountUserModel{
 		ID: iduint,
 	})
 
@@ -542,7 +550,7 @@ func GetLogVehicle(c *gin.Context) {
 
 	//--------check id--------check id--------check id--------
 
-	result := db.Table("vehicle_measurement_log_models").Where("user_id = ?", headerid).Find(&logVehicleData)
+	result := db.Table("vehicle_measurement_log_models").Where("user_id = ?", returnEmailsOrUid).Find(&logVehicleData)
 
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{

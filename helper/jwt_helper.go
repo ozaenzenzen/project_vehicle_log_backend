@@ -1,10 +1,13 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 )
 
 var key string = "ozaenzenzen"
@@ -96,4 +99,30 @@ func VerifyToken(tokenString string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func ValidateTokenJWT(c *gin.Context, db *gorm.DB, headertoken string) (bool, error) {
+	if headertoken == "" {
+		sampleErr := errors.New("token empty")
+		return false, sampleErr
+	}
+	isValid, err := VerifyToken(headertoken)
+	return isValid, err
+}
+
+func GetDataTokenJWT(headertoken string, isEmail bool) string {
+	tokenRaw, err := DecodeJWTToken(headertoken)
+	// fmt.Printf("\ntoken raw %v", tokenRaw)
+	if err != nil {
+		return ""
+	}
+
+	emails := tokenRaw["email"].(string)
+	uid := tokenRaw["uid"].(string)
+
+	if isEmail == true {
+		return emails
+	} else {
+		return uid
+	}
 }

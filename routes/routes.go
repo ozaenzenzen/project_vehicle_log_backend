@@ -8,6 +8,11 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+type HandleRoutesResponse struct {
+	Status  int    `json:"status"`
+	Message string `json:"message"`
+}
+
 func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r := gin.Default()
 	r.Use(func(c *gin.Context) {
@@ -33,10 +38,15 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 		// 	"message": "Page not found",
 		// }
 		// c.JSON(http.StatusNotFound, response)
-		c.JSON(http.StatusNotFound, gin.H{
-			"status":  http.StatusNotFound,
-			"message": "Page not found",
+		// c.JSON(http.StatusNotFound, gin.H{
+		// 	"status":  http.StatusNotFound,
+		// 	"message": "Page not found",
+		// })
+		c.JSON(http.StatusNotFound, HandleRoutesResponse{
+			Status:  http.StatusNotFound,
+			Message: "Page not found",
 		})
+
 		return
 	})
 

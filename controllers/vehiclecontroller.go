@@ -191,14 +191,14 @@ func EditVehicle(c *gin.Context) {
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, EditVehicleResponse{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})

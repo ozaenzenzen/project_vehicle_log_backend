@@ -280,9 +280,38 @@ func EditVehicle(c *gin.Context) {
 		return
 	}
 
+	var vehicle vehicle.VehicleModel
+	if err := db.Where("id = ?", editVehicleRequest.VehicleId).First(&vehicle).Error; err != nil {
+		if gorm.IsRecordNotFoundError(err) {
+			log.Println(fmt.Printf("Vehicle with ID %d not found.\n", editVehicleRequest.VehicleId))
+			c.JSON(http.StatusBadRequest, EditVehicleResponse{
+				Status:  http.StatusBadRequest,
+				Message: err.Error(),
+			})
+			return
+		} else {
+			log.Println("Error while querying the database.")
+			c.JSON(http.StatusInternalServerError, EditVehicleResponse{
+				Status:  http.StatusInternalServerError,
+				Message: err.Error(),
+			})
+			return
+		}
+	} else {
+		log.Println(fmt.Printf("Vehicle with ID %d is associated with User ID %d.\n", editVehicleRequest.VehicleId, vehicle.UserId))
+		if vehicle.UserId != iduint {
+			log.Println(fmt.Printf("Tidak sama userid"))
+			c.JSON(http.StatusBadRequest, EditVehicleResponse{
+				Status:  http.StatusBadRequest,
+				Message: "User tidak valid dengan data kendaraan",
+			})
+			return
+		} else {
+			log.Println(fmt.Printf("userid sama"))
+		}
+	}
+
 	result := db.Table("vehicle_models").Where("id = ?", editVehicleRequest.VehicleId).Where("user_id = ?", returnEmailsOrUid).Update(&vehicleDataOutput)
-	log.Println(fmt.Sprintf("result Value1: %s", result.Value))
-	log.Println(fmt.Sprintf("result RowsAffected1: %d", result.RowsAffected))
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, EditVehicleResponse{
 			Status:  400,

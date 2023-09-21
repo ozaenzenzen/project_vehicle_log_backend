@@ -212,8 +212,8 @@ func EditVehicle(c *gin.Context) {
 	if err := c.ShouldBindJSON(&editVehicleRequest); err != nil {
 		log.Println(fmt.Sprintf("error log: %s", err))
 		c.JSON(http.StatusBadRequest, EditVehicleResponse{
-			Status:  500,
-			Message: "Edit Vehicle Failed",
+			Status:  http.StatusBadRequest,
+			Message: "data required",
 		})
 		return
 	}

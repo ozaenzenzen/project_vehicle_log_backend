@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	jwthelper "project_vehicle_log_backend/helper"
 	account "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
 	vehicle "project_vehicle_log_backend/models/vehicle"
@@ -307,25 +308,33 @@ type GetAllVehicleDataResponse struct {
 }
 
 func GetAllVehicleData(c *gin.Context) {
-	headerid := c.Request.Header.Get("usd")
+	db := c.MustGet("db").(*gorm.DB)
+	headertoken := c.Request.Header.Get("token")
+	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
-	if headerid == "" {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
-			Status:  400,
-			Message: "headers empty",
-			// Data:    []vehicle.VehicleModel{},
-			Data: []VehicleData{},
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+	if isValid == false {
+		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid token",
 		})
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
+	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
+
 	// var vehicleData []vehicle.VehicleModel
 	var vehicleData []VehicleData
 
 	//--------check id--------check id--------check id--------
 
-	iduint64, err := strconv.ParseUint(headerid, 10, 32)
+	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
@@ -336,7 +345,7 @@ func GetAllVehicleData(c *gin.Context) {
 	}
 	iduint := uint(iduint64)
 
-	checkID := db.Table("account_user_models").Where("id = ?", headerid).Find(&account.AccountUserModel{
+	checkID := db.Table("account_user_models").Where("id = ?", returnEmailsOrUid).Find(&account.AccountUserModel{
 		ID: iduint,
 	})
 
@@ -352,7 +361,7 @@ func GetAllVehicleData(c *gin.Context) {
 
 	result := db.Preload("VehicleMeasurementLogModels", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, user_id, vehicle_id, measurement_title, current_odo, estimate_odo_changing, amount_expenses, checkpoint_date, notes, created_at, updated_at")
-	}).Table("vehicle_models").Where("user_id = ?", headerid).Find(&vehicleData)
+	}).Table("vehicle_models").Where("user_id = ?", returnEmailsOrUid).Find(&vehicleData)
 
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{

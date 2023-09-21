@@ -23,7 +23,7 @@ type CreateVehicleResponse struct {
 }
 
 type CreateVehicleRequest struct {
-	UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
+	// UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
 	VehicleName    string `gorm:"not null" json:"vehicle_name" validate:"required"`
 	VehicleImage   string `gorm:"not null" json:"vehicle_image" validate:"required"`
 	Year           string `gorm:"not null" json:"year" validate:"required"`
@@ -35,6 +35,26 @@ type CreateVehicleRequest struct {
 }
 
 func CreateVehicle(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	headertoken := c.Request.Header.Get("token")
+	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+	if isValid == false {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  http.StatusBadRequest,
+			Message: "Invalid token",
+		})
+		return
+	}
+
+	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 	var vehicleInput CreateVehicleRequest
 	if err := c.ShouldBindJSON(&vehicleInput); err != nil {
 		log.Println(fmt.Sprintf("error log: %s", err))
@@ -50,17 +70,25 @@ func CreateVehicle(c *gin.Context) {
 		log.Println(fmt.Sprintf("error log2: %s", err))
 		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
 			Status:  400,
-			Message: "Create Vehicle Failed2",
+			Message: "validate error, field required",
 		})
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
 	//--------check id--------check id--------check id--------
+	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
-	checkID := db.Table("account_user_models").Where("id = ?", vehicleInput.UserId).Find(&account.AccountUserModel{
-		ID: vehicleInput.UserId,
+	if err != nil {
+		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+			Status:  500,
+			Message: "error parsing",
+		})
+		return
+	}
+	iduint := uint(iduint64)
+
+	checkID := db.Table("account_user_models").Where("id = ?", returnEmailsOrUid).Find(&account.AccountUserModel{
+		ID: iduint,
 	})
 
 	if checkID.Error != nil {
@@ -74,7 +102,7 @@ func CreateVehicle(c *gin.Context) {
 	//--------check id--------check id--------check id--------
 
 	vehicleData := vehicle.VehicleModel{
-		UserId:         vehicleInput.UserId,
+		// UserId:         vehicleInput.UserId,
 		VehicleName:    vehicleInput.VehicleName,
 		VehicleImage:   vehicleInput.VehicleImage,
 		Year:           vehicleInput.Year,
@@ -120,7 +148,7 @@ func CreateVehicle(c *gin.Context) {
 	}
 
 	inputNotifModel := notif.Notification{
-		UserId:                  vehicleInput.UserId,
+		UserId:                  iduint,
 		NotificationTitle:       "Add Vehicle",
 		NotificationDescription: "Anda Telah Menambahkan Kendaraan",
 		NotificationStatus:      0,

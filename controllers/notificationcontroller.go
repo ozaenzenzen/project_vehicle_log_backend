@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,32 +14,6 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-func validateTokenJWT(c *gin.Context, db *gorm.DB, headertoken string) (bool, error) {
-	if headertoken == "" {
-		sampleErr := errors.New("token empty")
-		return false, sampleErr
-	}
-	isValid, err := jwthelper.VerifyToken(headertoken)
-	return isValid, err
-}
-
-func getDataTokenJWT(headertoken string, isEmail bool) string {
-	tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
-	// fmt.Printf("\ntoken raw %v", tokenRaw)
-	if err != nil {
-		return ""
-	}
-
-	emails := tokenRaw["email"].(string)
-	uid := tokenRaw["uid"].(string)
-
-	if isEmail == true {
-		return emails
-	} else {
-		return uid
-	}
-}
-
 type GetNotificationResponse struct {
 	Status       int                   `json:"status"`
 	Message      string                `json:"message"`
@@ -50,7 +23,7 @@ type GetNotificationResponse struct {
 func GetNotificationByUserId(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
-	isValid, err := validateTokenJWT(c, db, headertoken)
+	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, GetNotificationResponse{
 			Status:  http.StatusBadRequest,
@@ -69,7 +42,7 @@ func GetNotificationByUserId(c *gin.Context) {
 			})
 			return
 		}
-		returnEmailsOrUid := getDataTokenJWT(headertoken, false)
+		returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 		if returnEmailsOrUid != c.Param("id") {
 			c.JSON(http.StatusBadRequest, GetNotificationResponse{
 				Status:  http.StatusBadRequest,

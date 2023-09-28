@@ -177,10 +177,11 @@ func SignInAccount(c *gin.Context) {
 }
 
 type GetUserDataModel struct {
-	ID    uint   `json:"id" gorm:"primary_key"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Phone string `json:"phone"`
+	ID             uint   `json:"id" gorm:"primary_key"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	Phone          string `json:"phone"`
+	ProfilePicture string `json:"profile_picture"`
 }
 
 type AccountUserGetUserResponse struct {
@@ -241,10 +242,11 @@ func GetUserData(c *gin.Context) {
 			Status:  200,
 			Message: "get user data success",
 			UserData: &GetUserDataModel{
-				ID:    userData.ID,
-				Name:  userData.Name,
-				Email: userData.Email,
-				Phone: userData.Phone,
+				ID:             userData.ID,
+				Name:           userData.Name,
+				Email:          userData.Email,
+				Phone:          userData.Phone,
+				ProfilePicture: userData.ProfilePicture,
 			},
 		})
 		return

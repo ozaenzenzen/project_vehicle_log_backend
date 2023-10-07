@@ -28,6 +28,8 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.POST("/vehicle/editvehicle", controllers.EditVehicle)
 	r.POST("/vehicle/createlogvehicle", controllers.CreateLogVehicle)
 	r.GET("/vehicle/getlogvehicle", controllers.GetLogVehicle)
+	r.PUT("/vehicle/editmeasurementlogvehicle", controllers.EditMeasurementLogVehicle)
+	// r.PUT("/vehicle/deletemeasurementlogvehicle", controllers.GetLogVehicle) //next update
 	// r.POST("/event/submitevent", controllers.SubmitEvent)
 	// r.GET("/event/getlistvolunteers/:id", controllers.GetListVolunteer) //event id
 	r.GET("/notifications/:id", controllers.GetNotificationByUserId) //user id

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"project_vehicle_log_backend/helper"
 	jwthelper "project_vehicle_log_backend/helper"
-	account "project_vehicle_log_backend/models/account"
 	user "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
 	"strconv"
@@ -271,27 +271,6 @@ type EditProfileResponse struct {
 	Message string `json:"message"`
 }
 
-func checkIDHelper(c *gin.Context, db *gorm.DB, ids string, out interface{}) error {
-	//--------check id--------check id--------check id--------
-	iduint64, err := strconv.ParseUint(ids, 10, 32)
-
-	if err != nil {
-		return err
-	}
-	iduint := uint(iduint64)
-
-	checkID := db.Table("account_user_models").Where("id = ?", ids).Find(&account.AccountUserModel{
-		ID: iduint,
-	})
-
-	if checkID.Error != nil {
-
-		return checkID.Error
-	}
-	//--------check id--------check id--------check id--------
-	return nil
-}
-
 func EditProfile(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
@@ -345,17 +324,7 @@ func EditProfile(c *gin.Context) {
 		}
 		iduint := uint(iduint64)
 
-		checkID := db.Table("account_user_models").Where("id = ?", ids).Find(&account.AccountUserModel{
-			ID: iduint,
-		})
-
-		if checkID.Error != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  400,
-				Message: checkID.Error.Error(),
-			})
-			return
-		}
+		helper.CheckID(db, c, ids)
 
 		//--------check id--------check id--------check id--------
 

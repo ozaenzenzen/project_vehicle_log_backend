@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
+	"project_vehicle_log_backend/helper"
 	jwthelper "project_vehicle_log_backend/helper"
-	account "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
 
 	"github.com/gin-gonic/gin"
@@ -53,28 +52,7 @@ func GetNotificationByUserId(c *gin.Context) {
 
 		//--------check id--------check id--------check id--------
 
-		iduint64, err := strconv.ParseUint(c.Param("id"), 10, 32)
-
-		if err != nil {
-			c.JSON(http.StatusBadRequest, GetNotificationResponse{
-				Status:  500,
-				Message: "error parsing",
-			})
-			return
-		}
-		iduint := uint(iduint64)
-
-		checkID := db.Table("account_user_models").Where("id = ?", c.Param("id")).Find(&account.AccountUserModel{
-			ID: iduint,
-		})
-
-		if checkID.Error != nil {
-			c.JSON(http.StatusBadRequest, GetNotificationResponse{
-				Status:  400,
-				Message: checkID.Error.Error(),
-			})
-			return
-		}
+		helper.CheckID(db, c, c.Param("id"))
 
 		//--------check id--------check id--------check id--------
 

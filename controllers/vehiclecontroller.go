@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"project_vehicle_log_backend/helper"
 	jwthelper "project_vehicle_log_backend/helper"
 	account "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
@@ -87,17 +88,7 @@ func CreateVehicle(c *gin.Context) {
 	}
 	iduint := uint(iduint64)
 
-	checkID := db.Table("account_user_models").Where("id = ?", iduint).Find(&account.AccountUserModel{
-		ID: iduint,
-	})
-
-	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
-			Status:  400,
-			Message: checkID.Error.Error(),
-		})
-		return
-	}
+	helper.CheckID(db, c, returnEmailsOrUid)
 
 	//--------check id--------check id--------check id--------
 

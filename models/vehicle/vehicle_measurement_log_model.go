@@ -5,6 +5,7 @@ import "time"
 type VehicleMeasurementLogModel struct {
 	Id                  uint      `json:"id" gorm:"primary_key"`
 	UserId              uint      `json:"user_id"`
+	UserStamp           string    `json:"user_stamp"`
 	VehicleId           uint      `json:"vehicle_id"`
 	MeasurementTitle    string    `json:"measurement_title"`
 	CurrentOdo          string    `json:"current_odo"`

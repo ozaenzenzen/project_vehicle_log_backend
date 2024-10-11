@@ -120,9 +120,44 @@ func GetDataTokenJWT(headertoken string, isEmail bool) string {
 	emails := tokenRaw["email"].(string)
 	uid := tokenRaw["uid"].(string)
 
-	if isEmail == true {
+	if isEmail {
 		return emails
 	} else {
 		return uid
 	}
+}
+
+func DecodeUserToken(tokenString string) (jwt.MapClaims, error) {
+	// return token.Raw, err
+	hmacSecret := []byte(key)
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return hmacSecret, nil
+	})
+	if err != nil {
+		return nil, nil
+	}
+	return token.Claims.(jwt.MapClaims), err
+}
+
+func VerifyUserToken(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing algorithm is HMAC with SHA-256
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Provide the secret key used for signing the token
+		return []byte(key), nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return true, nil
+	}
+
+	return false, nil
 }

@@ -23,6 +23,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.POST("/account/editprofile", controllers.EditProfile)
 	// r.GET("/account/userdata/:id", controllers.GetUserData)
 	r.GET("/account/userdata", controllers.GetUserData)
+
 	r.GET("/vehicle/allvehicle", controllers.GetAllVehicleData)
 	r.POST("/vehicle/createvehicle", controllers.CreateVehicle)
 	r.POST("/vehicle/editvehicle", controllers.EditVehicle)
@@ -32,6 +33,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	// r.PUT("/vehicle/deletemeasurementlogvehicle", controllers.GetLogVehicle) //next update
 	// r.POST("/event/submitevent", controllers.SubmitEvent)
 	// r.GET("/event/getlistvolunteers/:id", controllers.GetListVolunteer) //event id
+
 	r.GET("/notifications/:id", controllers.GetNotificationByUserId) //user id
 
 	r.NoRoute(func(c *gin.Context) {

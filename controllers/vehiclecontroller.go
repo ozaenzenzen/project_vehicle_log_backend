@@ -5,8 +5,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
+	req "project_vehicle_log_backend/data/vehicle/request"
+	resp "project_vehicle_log_backend/data/vehicle/response"
 	jwthelper "project_vehicle_log_backend/helper"
 	account "project_vehicle_log_backend/models/account"
 	notif "project_vehicle_log_backend/models/notification"
@@ -17,37 +18,20 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type CreateVehicleResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-type CreateVehicleRequest struct {
-	// UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
-	VehicleName    string `gorm:"not null" json:"vehicle_name" validate:"required"`
-	VehicleImage   string `gorm:"not null" json:"vehicle_image" validate:"required"`
-	Year           string `gorm:"not null" json:"year" validate:"required"`
-	EngineCapacity string `gorm:"not null" json:"engine_capacity" validate:"required"`
-	TankCapacity   string `gorm:"not null" json:"tank_capacity" validate:"required"`
-	Color          string `gorm:"not null" json:"color" validate:"required"`
-	MachineNumber  string `gorm:"not null" json:"machine_number" validate:"required"`
-	ChassisNumber  string `gorm:"not null" json:"chassis_number" validate:"required"`
-}
-
 func CreateVehicle(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})
@@ -55,10 +39,10 @@ func CreateVehicle(c *gin.Context) {
 	}
 
 	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
-	var vehicleInput CreateVehicleRequest
-	if err := c.ShouldBindJSON(&vehicleInput); err != nil {
+	var createVehicleReq req.CreateVehicleRequestModel
+	if err := c.ShouldBindJSON(&createVehicleReq); err != nil {
 		log.Println(fmt.Sprintf("error log: %s", err))
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  500,
 			Message: "Create Vehicle Failed",
 		})
@@ -66,9 +50,9 @@ func CreateVehicle(c *gin.Context) {
 	}
 	validate := validator.New()
 
-	if err := validate.Struct(vehicleInput); err != nil {
+	if err := validate.Struct(createVehicleReq); err != nil {
 		log.Println(fmt.Sprintf("error log2: %s", err))
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  400,
 			Message: "validate error, field required",
 		})
@@ -79,7 +63,7 @@ func CreateVehicle(c *gin.Context) {
 	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  500,
 			Message: "error parsing",
 		})
@@ -92,7 +76,7 @@ func CreateVehicle(c *gin.Context) {
 	})
 
 	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  400,
 			Message: checkID.Error.Error(),
 		})
@@ -103,23 +87,23 @@ func CreateVehicle(c *gin.Context) {
 
 	vehicleData := vehicle.VehicleModel{
 		UserId:         iduint,
-		VehicleName:    vehicleInput.VehicleName,
-		VehicleImage:   vehicleInput.VehicleImage,
-		Year:           vehicleInput.Year,
-		EngineCapacity: vehicleInput.EngineCapacity,
-		TankCapacity:   vehicleInput.TankCapacity,
-		Color:          vehicleInput.Color,
-		MachineNumber:  vehicleInput.MachineNumber,
-		ChassisNumber:  vehicleInput.ChassisNumber,
+		VehicleName:    createVehicleReq.VehicleName,
+		VehicleImage:   createVehicleReq.VehicleImage,
+		Year:           createVehicleReq.Year,
+		EngineCapacity: createVehicleReq.EngineCapacity,
+		TankCapacity:   createVehicleReq.TankCapacity,
+		Color:          createVehicleReq.Color,
+		MachineNumber:  createVehicleReq.MachineNumber,
+		ChassisNumber:  createVehicleReq.ChassisNumber,
 	}
 
-	createVehicleResponse := CreateVehicleResponse{
+	createVehicleResponse := resp.CreateVehicleResponseModel{
 		Status:  201,
 		Message: "Vehicle created successfully",
 	}
 
 	if db.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  400,
 			Message: db.Error.Error(),
 		})
@@ -127,12 +111,12 @@ func CreateVehicle(c *gin.Context) {
 	}
 	// result := db.Create(&vehicleData)
 	result := db.FirstOrCreate(&vehicleData, vehicle.VehicleModel{
-		MachineNumber: vehicleInput.MachineNumber,
-		ChassisNumber: vehicleInput.ChassisNumber,
+		MachineNumber: createVehicleReq.MachineNumber,
+		ChassisNumber: createVehicleReq.ChassisNumber,
 	})
 
 	if result.Value == nil && result.RowsAffected == 0 {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  400,
 			Message: "Record found",
 		})
@@ -140,7 +124,7 @@ func CreateVehicle(c *gin.Context) {
 	}
 
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error(),
 		})
@@ -157,7 +141,7 @@ func CreateVehicle(c *gin.Context) {
 
 	resultNotif := db.Table("notifications").Create(&inputNotifModel)
 	if resultNotif.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error() + "Notif error",
 		})
@@ -167,38 +151,20 @@ func CreateVehicle(c *gin.Context) {
 	c.JSON(http.StatusCreated, createVehicleResponse)
 }
 
-type EditVehicleResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-type EditVehicleReqeust struct {
-	// UserId         uint   `gorm:"not null" json:"user_id" validate:"required"`
-	VehicleId      uint   `gorm:"not null" json:"vehicle_id" validate:"required"`
-	VehicleName    string `gorm:"not null" json:"vehicle_name" validate:"required"`
-	VehicleImage   string `json:"vehicle_image"`
-	Year           string `gorm:"not null" json:"year" validate:"required"`
-	EngineCapacity string `gorm:"not null" json:"engine_capacity" validate:"required"`
-	TankCapacity   string `gorm:"not null" json:"tank_capacity" validate:"required"`
-	Color          string `gorm:"not null" json:"color" validate:"required"`
-	MachineNumber  string `gorm:"not null" json:"machine_number" validate:"required"`
-	ChassisNumber  string `gorm:"not null" json:"chassis_number" validate:"required"`
-}
-
 func EditVehicle(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})
@@ -207,11 +173,11 @@ func EditVehicle(c *gin.Context) {
 
 	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 
-	var editVehicleRequest EditVehicleReqeust
+	var editVehicleRequest req.EditVehicleRequestModel
 
 	if err := c.ShouldBindJSON(&editVehicleRequest); err != nil {
 		log.Println(fmt.Sprintf("error log: %s", err))
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "data required",
 		})
@@ -221,7 +187,7 @@ func EditVehicle(c *gin.Context) {
 
 	if err := validate.Struct(editVehicleRequest); err != nil {
 		log.Println(fmt.Sprintf("error log2: %s", err))
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  400,
 			Message: "validate error, field required",
 		})
@@ -233,7 +199,7 @@ func EditVehicle(c *gin.Context) {
 	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  500,
 			Message: "error parsing",
 		})
@@ -246,7 +212,7 @@ func EditVehicle(c *gin.Context) {
 	})
 
 	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  400,
 			Message: checkID.Error.Error(),
 		})
@@ -267,13 +233,13 @@ func EditVehicle(c *gin.Context) {
 		ChassisNumber:  editVehicleRequest.ChassisNumber,
 	}
 
-	editVehicleResponse := EditVehicleResponse{
+	editVehicleResponse := resp.EditVehicleResponseModel{
 		Status:  201,
 		Message: "Vehicle update successfully",
 	}
 
 	if db.Error != nil {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  400,
 			Message: db.Error.Error(),
 		})
@@ -284,14 +250,14 @@ func EditVehicle(c *gin.Context) {
 	if err := db.Where("id = ?", editVehicleRequest.VehicleId).First(&vehicle).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			log.Println(fmt.Printf("Vehicle with ID %d not found.\n", editVehicleRequest.VehicleId))
-			c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 				Status:  http.StatusBadRequest,
 				Message: err.Error(),
 			})
 			return
 		} else {
 			log.Println("Error while querying the database.")
-			c.JSON(http.StatusInternalServerError, EditVehicleResponse{
+			c.JSON(http.StatusInternalServerError, resp.EditVehicleResponseModel{
 				Status:  http.StatusInternalServerError,
 				Message: err.Error(),
 			})
@@ -301,7 +267,7 @@ func EditVehicle(c *gin.Context) {
 		log.Println(fmt.Printf("Vehicle with ID %d is associated with User ID %d.\n", editVehicleRequest.VehicleId, vehicle.UserId))
 		if vehicle.UserId != iduint {
 			log.Println(fmt.Printf("Tidak sama userid"))
-			c.JSON(http.StatusBadRequest, EditVehicleResponse{
+			c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 				Status:  http.StatusBadRequest,
 				Message: "User tidak valid dengan data kendaraan",
 			})
@@ -313,7 +279,7 @@ func EditVehicle(c *gin.Context) {
 
 	result := db.Table("vehicle_models").Where("id = ?", editVehicleRequest.VehicleId).Where("user_id = ?", returnEmailsOrUid).Update(&vehicleDataOutput)
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error(),
 		})
@@ -330,7 +296,7 @@ func EditVehicle(c *gin.Context) {
 
 	resultNotif := db.Table("notifications").Create(&inputNotifModel)
 	if resultNotif.Error != nil {
-		c.JSON(http.StatusBadRequest, EditVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error() + "Notif error",
 		})
@@ -340,56 +306,20 @@ func EditVehicle(c *gin.Context) {
 	c.JSON(http.StatusCreated, editVehicleResponse)
 }
 
-type VehicleData struct {
-	Id             uint   `json:"id" gorm:"primary_key"`
-	UserId         uint   `json:"user_id"`
-	VehicleName    string `json:"vehicle_name"`
-	VehicleImage   string `json:"vehicle_image"`
-	Year           string `json:"year"`
-	EngineCapacity string `json:"engine_capacity"`
-	TankCapacity   string `json:"tank_capacity"`
-	Color          string `json:"color"`
-	MachineNumber  string `json:"machine_number"`
-	ChassisNumber  string `json:"chassis_number"`
-	// VehicleMeasurementLogModel []vehicle.VehicleMeasurementLogModel `json:"vehicle_measurement_log_models" gorm:"foreignKey:user_id;references:UserId"`
-	VehicleMeasurementLogModels []VehicleMeasurementLogModel `json:"vehicle_measurement_log_models" gorm:"foreignKey:vehicle_id;references:Id"`
-}
-
-type VehicleMeasurementLogModel struct {
-	Id                  uint      `json:"id" `
-	UserId              uint      `json:"user_id"`
-	VehicleId           uint      `json:"vehicle_id"`
-	MeasurementTitle    string    `json:"measurement_title"`
-	CurrentOdo          string    `json:"current_odo"`
-	EstimateOdoChanging string    `json:"estimate_odo_changing"`
-	AmountExpenses      string    `json:"amount_expenses"`
-	CheckpointDate      string    `json:"checkpoint_date"`
-	Notes               string    `json:"notes"`
-	CreatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
-}
-
-type GetAllVehicleDataResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	// Data    []vehicle.VehicleModel
-	Data []VehicleData
-}
-
 func GetAllVehicleData(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})
@@ -399,14 +329,14 @@ func GetAllVehicleData(c *gin.Context) {
 	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 
 	// var vehicleData []vehicle.VehicleModel
-	var vehicleData []VehicleData
+	var vehicleData []resp.VehicleDataModel
 
 	//--------check id--------check id--------check id--------
 
 	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModel{
 			Status:  500,
 			Message: "error parsing",
 		})
@@ -419,7 +349,7 @@ func GetAllVehicleData(c *gin.Context) {
 	})
 
 	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModel{
 			Status:  400,
 			Message: checkID.Error.Error(),
 		})
@@ -433,7 +363,7 @@ func GetAllVehicleData(c *gin.Context) {
 	}).Table("vehicle_models").Where("user_id = ?", returnEmailsOrUid).Find(&vehicleData)
 
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModel{
 			Status:  400,
 			Message: result.Error.Error(),
 		})
@@ -442,35 +372,20 @@ func GetAllVehicleData(c *gin.Context) {
 
 	if result.Value == nil {
 		log.Println(fmt.Sprintf("error log3: %s", result.Error))
-		c.JSON(http.StatusNotFound, GetAllVehicleDataResponse{
+		c.JSON(http.StatusNotFound, resp.GetAllVehicleDataResponseModel{
 			Status:  404,
 			Message: "get all vehicle data Failed",
-			Data:    []VehicleData{},
+			Data:    nil,
 			// Data:    []vehicle.VehicleModel{},
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, GetAllVehicleDataResponse{
+	c.JSON(http.StatusOK, resp.GetAllVehicleDataResponseModel{
 		Status:  200,
 		Message: "get all vehicle data success",
-		Data:    vehicleData,
+		Data:    &vehicleData,
 	})
-}
-
-type CreateLogVehicleRequest struct {
-	// UserId              uint   `gorm:"not null" json:"user_id" validate:"required"`
-	VehicleId           uint   `gorm:"not null" json:"vehicle_id" validate:"required"`
-	MeasurementTitle    string `gorm:"not null" json:"measurement_title" validate:"required"`
-	CurrentOdo          string `gorm:"not null" json:"current_odo" validate:"required"`
-	EstimateOdoChanging string `gorm:"not null" json:"estimate_odo_changing" validate:"required"`
-	AmountExpenses      string `gorm:"not null" json:"amount_expenses" validate:"required"`
-	CheckpointDate      string `gorm:"not null" json:"checkpoint_date" validate:"required"`
-	Notes               string `gorm:"not null" json:"notes" validate:"required"`
-}
-type CreateLogVehicleResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
 }
 
 func CreateLogVehicle(c *gin.Context) {
@@ -479,14 +394,14 @@ func CreateLogVehicle(c *gin.Context) {
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})
@@ -495,10 +410,10 @@ func CreateLogVehicle(c *gin.Context) {
 
 	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 
-	var createLogVehicle CreateLogVehicleRequest
+	var createLogVehicle req.CreateLogVehicleRequestModel
 	if err := c.ShouldBindJSON(&createLogVehicle); err != nil {
 		log.Println(fmt.Sprintf("error log CreateLogVehicleResponse: %s", err))
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "data required",
 		})
@@ -508,7 +423,7 @@ func CreateLogVehicle(c *gin.Context) {
 
 	if err := validate.Struct(&createLogVehicle); err != nil {
 		log.Println(fmt.Sprintf("error log2: %s", err))
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  400,
 			Message: "validate error, field required",
 		})
@@ -520,7 +435,7 @@ func CreateLogVehicle(c *gin.Context) {
 	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  500,
 			Message: "error parsing",
 		})
@@ -533,7 +448,7 @@ func CreateLogVehicle(c *gin.Context) {
 	})
 
 	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  400,
 			Message: checkID.Error.Error(),
 		})
@@ -546,14 +461,14 @@ func CreateLogVehicle(c *gin.Context) {
 	if err := db.Where("id = ?", createLogVehicle.VehicleId).First(&checkVehicleRelateWithId).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			log.Println(fmt.Printf("Vehicle with ID %d not found.\n", createLogVehicle.VehicleId))
-			c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+			c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 				Status:  http.StatusBadRequest,
 				Message: err.Error(),
 			})
 			return
 		} else {
 			log.Println("Error while querying the database.")
-			c.JSON(http.StatusInternalServerError, CreateLogVehicleResponse{
+			c.JSON(http.StatusInternalServerError, resp.CreateLogVehicleResponseModel{
 				Status:  http.StatusInternalServerError,
 				Message: err.Error(),
 			})
@@ -563,7 +478,7 @@ func CreateLogVehicle(c *gin.Context) {
 		log.Println(fmt.Printf("Vehicle with ID %d is associated with User ID %d.\n", createLogVehicle.VehicleId, checkVehicleRelateWithId.UserId))
 		if checkVehicleRelateWithId.UserId != iduint {
 			log.Println(fmt.Printf("Tidak sama userid"))
-			c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+			c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 				Status:  http.StatusBadRequest,
 				Message: "User tidak valid dengan data kendaraan",
 			})
@@ -573,7 +488,7 @@ func CreateLogVehicle(c *gin.Context) {
 		}
 	}
 
-	createLogVehicleResponse := CreateLogVehicleResponse{
+	createLogVehicleResponse := resp.CreateLogVehicleResponseModel{
 		Status:  201,
 		Message: "Create Log Vehicle successfully",
 	}
@@ -595,7 +510,7 @@ func CreateLogVehicle(c *gin.Context) {
 	// 3: waiting response
 
 	if db.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  400,
 			Message: db.Error.Error(),
 		})
@@ -615,7 +530,7 @@ func CreateLogVehicle(c *gin.Context) {
 
 	result := db.Create(&createLogVehicleData)
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error(),
 		})
@@ -631,7 +546,7 @@ func CreateLogVehicle(c *gin.Context) {
 
 	resultNotif := db.Table("notifications").Create(&inputNotifModel)
 	if resultNotif.Error != nil {
-		c.JSON(http.StatusBadRequest, CreateLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.CreateLogVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error() + "Notif error",
 		})
@@ -641,36 +556,20 @@ func CreateLogVehicle(c *gin.Context) {
 	c.JSON(http.StatusCreated, createLogVehicleResponse)
 }
 
-type GetLogVehicleRequest struct {
-	UserId              uint   `json:"user_id"`
-	VehicleId           uint   `json:"vehicle_id"`
-	MeasurementTitle    string `json:"measurement_title"`
-	CurrentOdo          string `json:"current_odo"`
-	EstimateOdoChanging string `json:"estimate_odo_changing"`
-	AmountExpenses      string `json:"amount_expenses"`
-	CheckpointDate      string `json:"checkpoint_date"`
-	Notes               string `json:"notes"`
-}
-type GetLogVehicleResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-	Data    []vehicle.VehicleMeasurementLogModel
-}
-
 func GetLogVehicle(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	headertoken := c.Request.Header.Get("token")
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, GetAllVehicleDataResponse{
+		c.JSON(http.StatusBadRequest, resp.GetLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})
@@ -678,14 +577,14 @@ func GetLogVehicle(c *gin.Context) {
 	}
 
 	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
-	var logVehicleData []vehicle.VehicleMeasurementLogModel
+	var logVehicleData []resp.GetLogVehicleDataModel
 
 	//--------check id--------check id--------check id--------
 
 	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.GetLogVehicleResponseModel{
 			Status:  500,
 			Message: "error parsing",
 		})
@@ -698,7 +597,7 @@ func GetLogVehicle(c *gin.Context) {
 	})
 
 	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.GetLogVehicleResponseModel{
 			Status:  400,
 			Message: checkID.Error.Error(),
 		})
@@ -710,7 +609,7 @@ func GetLogVehicle(c *gin.Context) {
 	result := db.Table("vehicle_measurement_log_models").Where("user_id = ?", returnEmailsOrUid).Find(&logVehicleData)
 
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, GetLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.GetLogVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error(),
 		})
@@ -719,34 +618,19 @@ func GetLogVehicle(c *gin.Context) {
 
 	if result.Value == nil {
 		log.Println(fmt.Sprintf("error log3: %s", result.Error))
-		c.JSON(http.StatusNotFound, GetLogVehicleResponse{
+		c.JSON(http.StatusNotFound, resp.GetLogVehicleResponseModel{
 			Status:  404,
 			Message: "get log vehicle data Failed",
-			Data:    []vehicle.VehicleMeasurementLogModel{},
+			Data:    nil,
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, GetLogVehicleResponse{
+	c.JSON(http.StatusOK, resp.GetLogVehicleResponseModel{
 		Status:  200,
 		Message: "get log vehicle data success",
-		Data:    logVehicleData,
+		Data:    &logVehicleData,
 	})
-}
-
-type EditMeasurementLogVehicleRequest struct {
-	ID                  uint   `json:"id" `
-	VehicleId           uint   `json:"vehicle_id" `
-	MeasurementTitle    string `json:"measurement_title" `
-	CurrentOdo          string `json:"current_odo" `
-	EstimateOdoChanging string `json:"estimate_odo_changing" `
-	AmountExpenses      string `json:"amount_expenses" `
-	CheckpointDate      string `json:"checkpoint_date" `
-	Notes               string `json:"notes" `
-}
-type EditMeasurementLogVehicleResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
 }
 
 func EditMeasurementLogVehicle(c *gin.Context) {
@@ -755,14 +639,14 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	isValid, err := jwthelper.ValidateTokenJWT(c, db, headertoken)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: err.Error(),
 		})
 		return
 	}
 	if isValid == false {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "Invalid token",
 		})
@@ -771,10 +655,10 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 
 	returnEmailsOrUid := jwthelper.GetDataTokenJWT(headertoken, false)
 
-	var editMeasurementLogVehicle EditMeasurementLogVehicleRequest
+	var editMeasurementLogVehicle req.EditMeasurementLogVehicleRequestModel
 	if err := c.ShouldBindJSON(&editMeasurementLogVehicle); err != nil {
 		log.Println(fmt.Sprintf("error log EditMeasurementLogVehicleResponse: %s", err))
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "data required",
 		})
@@ -784,7 +668,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 
 	if err := validate.Struct(&editMeasurementLogVehicle); err != nil {
 		log.Println(fmt.Sprintf("error log2: %s", err))
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  400,
 			Message: "validate error, field required",
 		})
@@ -796,7 +680,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	iduint64, err := strconv.ParseUint(returnEmailsOrUid, 10, 32)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  500,
 			Message: "error parsing",
 		})
@@ -809,7 +693,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	})
 
 	if checkID.Error != nil {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  400,
 			Message: checkID.Error.Error(),
 		})
@@ -822,14 +706,14 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	if err := db.Where("id = ?", editMeasurementLogVehicle.VehicleId).First(&checkVehicleRelateWithId).Error; err != nil {
 		if gorm.IsRecordNotFoundError(err) {
 			log.Println(fmt.Printf("Vehicle with ID %d not found.\n", editMeasurementLogVehicle.VehicleId))
-			c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+			c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 				Status:  http.StatusBadRequest,
 				Message: err.Error(),
 			})
 			return
 		} else {
 			log.Println("Error while querying the database.")
-			c.JSON(http.StatusInternalServerError, EditMeasurementLogVehicleResponse{
+			c.JSON(http.StatusInternalServerError, resp.EditMeasurementLogVehicleResponseModel{
 				Status:  http.StatusInternalServerError,
 				Message: err.Error(),
 			})
@@ -839,7 +723,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 		log.Println(fmt.Printf("Vehicle with ID %d is associated with User ID %d.\n", editMeasurementLogVehicle.VehicleId, checkVehicleRelateWithId.UserId))
 		if checkVehicleRelateWithId.UserId != iduint {
 			log.Println(fmt.Printf("Tidak sama userid"))
-			c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+			c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 				Status:  http.StatusBadRequest,
 				Message: "User tidak valid dengan data kendaraan",
 			})
@@ -849,7 +733,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 		}
 	}
 
-	editMeasurementLogVehicleResponse := EditMeasurementLogVehicleResponse{
+	editMeasurementLogVehicleResponse := resp.EditMeasurementLogVehicleResponseModel{
 		Status:  202,
 		Message: "Create Log Vehicle successfully",
 	}
@@ -866,7 +750,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	}
 
 	if db.Error != nil {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  400,
 			Message: db.Error.Error(),
 		})
@@ -876,7 +760,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	result := db.Table("vehicle_measurement_log_models").Where("id = ?", editMeasurementLogVehicle.ID).Update(&dataUpdated)
 	log.Println(fmt.Sprintf("RowsAffected log: %d", result.RowsAffected))
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error(),
 		})
@@ -892,7 +776,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 
 	resultNotif := db.Table("notifications").Create(&inputNotifModel)
 	if resultNotif.Error != nil {
-		c.JSON(http.StatusBadRequest, EditMeasurementLogVehicleResponse{
+		c.JSON(http.StatusBadRequest, resp.EditMeasurementLogVehicleResponseModel{
 			Status:  400,
 			Message: result.Error.Error() + "Notif error",
 		})

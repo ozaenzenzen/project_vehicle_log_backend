@@ -498,6 +498,40 @@ func GetLogVehicle(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 }
 
+func GetListLogType(c *gin.Context) {
+	baseResponse := resp.GetListLogTypeResponseModel{}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		baseResponse.Data = nil
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	// QUERY RAW
+	var measurementType []resp.LogDataModel
+	query := "SELECT measurement_title FROM vehicle_measurement_log_models WHERE user_stamp = ? GROUP BY measurement_title"
+	if errQuery := db.Raw(query, userData.UserStamp).Scan(&measurementType).Error; errQuery != nil {
+		c.JSON(
+			http.StatusBadRequest, resp.GetListLogTypeResponseModel{
+				Status:  http.StatusBadRequest,
+				Message: errQuery.Error(),
+				Data:    nil,
+			},
+		)
+		return
+	}
+	c.JSON(http.StatusOK,
+		resp.GetListLogTypeResponseModel{
+			Status:  200,
+			Message: "Get log type success",
+			Data:    &measurementType,
+		},
+	)
+}
+
 func GetLogVehicleV2(c *gin.Context) {
 	baseResponse := resp.GetLogVehicleDataResponseModelV2{}
 
@@ -529,27 +563,6 @@ func GetLogVehicleV2(c *gin.Context) {
 		c.JSON(errorResp.Status, baseResponse)
 		return
 	}
-
-	// var logVehicleData []resp.GetLogVehicleDataModel
-	// result := db.Table("vehicle_measurement_log_models").
-	// 	Where("user_id = ?", userData.ID).
-	// 	Find(&logVehicleData)
-	// if result.Error != nil {
-	// 	baseResponse.Status = 400
-	// 	baseResponse.Message = result.Error.Error()
-	// 	baseResponse.Data = nil
-	// 	c.JSON(http.StatusBadRequest, baseResponse)
-	// 	return
-	// }
-
-	// if result.Value == nil {
-	// 	fmt.Println("error log3: ", result.Error)
-	// 	baseResponse.Status = 404
-	// 	baseResponse.Message = "get log vehicle data Failed"
-	// 	baseResponse.Data = nil
-	// 	c.JSON(http.StatusNotFound, baseResponse)
-	// 	return
-	// }
 
 	resultData, errPagination := GetLogVehiclePagination(
 		db,

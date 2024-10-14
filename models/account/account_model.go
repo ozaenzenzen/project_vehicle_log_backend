@@ -9,6 +9,7 @@ type AccountUserModel struct {
 	Email           string    `json:"email"`
 	Phone           string    `json:"phone"`
 	UserStamp       string    `json:"user_stamp"`
+	RefreshToken    string    `json:"refresh_token"`
 	Password        string    `json:"password"`
 	ConfirmPassword string    `json:"confirm_password"`
 	CreatedAt       time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`

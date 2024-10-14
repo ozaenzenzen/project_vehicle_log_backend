@@ -21,6 +21,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.POST("/account/signin", controllers.SignInAccount)
 	r.POST("/account/signup", controllers.SignUpAccount)
 	r.POST("/account/editprofile", controllers.EditProfile)
+	r.GET("/account/refreshtoken", controllers.RefreshToken)
 	// r.GET("/account/userdata/:id", controllers.GetUserData)
 	r.GET("/account/userdata", controllers.GetUserData)
 

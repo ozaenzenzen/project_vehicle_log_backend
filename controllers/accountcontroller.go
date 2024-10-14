@@ -16,6 +16,46 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+func RefreshToken(c *gin.Context) {
+	db, userStamp, _, errorResp := helper.CustomValidatorWithRefreshToken(c, true)
+	if errorResp != nil {
+		c.JSON(errorResp.Status, errorResp)
+		return
+	}
+
+	accessToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(*userStamp) // using stamp
+	if errGenerateJWT != nil {
+		c.JSON(http.StatusInternalServerError, resp.RefreshTokenResponseModel{
+			Status:  http.StatusInternalServerError,
+			Message: "Failed to generate token",
+			Data:    nil,
+		})
+		return
+	}
+
+	// store refresh token
+	storeRefreshToken := db.Table("account_user_models").
+		Where("user_stamp = ?", *userStamp).
+		Update(&req.RefreshTokenRequestModel{RefreshToken: refreshToken})
+	if storeRefreshToken.Error != nil {
+		c.JSON(http.StatusInternalServerError, resp.RefreshTokenResponseModel{
+			Status:  http.StatusInternalServerError,
+			Message: "error storing",
+			Data:    nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp.RefreshTokenResponseModel{
+		Status:  http.StatusOK,
+		Message: "Refresh Token Success",
+		Data: &resp.RefreshTokenDataModel{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+		},
+	})
+}
+
 func SignUpAccount(c *gin.Context) {
 	var signUpReq req.AccountSignUpRequestModel
 	if errBindJSON := c.ShouldBindJSON(&signUpReq); errBindJSON != nil {
@@ -154,6 +194,20 @@ func SignInAccount(c *gin.Context) {
 		c.JSON(http.StatusNotFound, resp.AccountSignInResponseModel{
 			Status:  http.StatusInternalServerError,
 			Message: "Failed to generate token",
+			Data:    nil,
+		})
+		return
+	}
+
+	// store refresh token
+	storeRefreshToken := db.Table("account_user_models").
+		Where("user_stamp = ?", tableAccount.UserStamp).
+		Update(&req.RefreshTokenRequestModel{RefreshToken: refreshToken})
+
+	if storeRefreshToken.Error != nil {
+		c.JSON(http.StatusUnauthorized, resp.AccountSignInResponseModel{
+			Status:  http.StatusUnauthorized,
+			Message: "Failed Storing",
 			Data:    nil,
 		})
 		return

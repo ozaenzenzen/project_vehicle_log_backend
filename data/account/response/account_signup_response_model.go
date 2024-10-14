@@ -7,7 +7,7 @@ type AccountSignUpResponseModel struct {
 }
 
 type AccountSignUpDataModel struct {
-	UserId    uint   `json:"user_id"`
+	UserId    uint   `json:"id"`
 	UserStamp string `json:"user_stamp"`
 	Name      string `json:"name"`
 	Email     string `json:"email"`

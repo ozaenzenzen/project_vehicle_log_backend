@@ -568,8 +568,8 @@ func GetLogVehicleV2(c *gin.Context) {
 		db,
 		reqData.CurrentPage,
 		reqData.Limit,
-		&reqData.VehicleID,
-		&reqData.MeasurementTitle,
+		reqData.VehicleID,
+		reqData.MeasurementTitle,
 		reqData.SortOrder,
 		&userData.UserStamp,
 	)

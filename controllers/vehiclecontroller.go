@@ -498,6 +498,189 @@ func GetLogVehicle(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 }
 
+func GetLogVehicleV2(c *gin.Context) {
+	baseResponse := resp.GetLogVehicleDataResponseModelV2{}
+
+	var reqData req.GetLogVehicleDataRequestModelV2
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
+			Status:  http.StatusBadRequest,
+			Message: "Data tidak lengkap1",
+			Data:    nil,
+		})
+		return
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(reqData); err != nil {
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
+			Status:  http.StatusBadRequest,
+			Message: "Data tidak lengkap2",
+			Data:    nil,
+		})
+		return
+	}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		baseResponse.Data = nil
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	// var logVehicleData []resp.GetLogVehicleDataModel
+	// result := db.Table("vehicle_measurement_log_models").
+	// 	Where("user_id = ?", userData.ID).
+	// 	Find(&logVehicleData)
+	// if result.Error != nil {
+	// 	baseResponse.Status = 400
+	// 	baseResponse.Message = result.Error.Error()
+	// 	baseResponse.Data = nil
+	// 	c.JSON(http.StatusBadRequest, baseResponse)
+	// 	return
+	// }
+
+	// if result.Value == nil {
+	// 	fmt.Println("error log3: ", result.Error)
+	// 	baseResponse.Status = 404
+	// 	baseResponse.Message = "get log vehicle data Failed"
+	// 	baseResponse.Data = nil
+	// 	c.JSON(http.StatusNotFound, baseResponse)
+	// 	return
+	// }
+
+	resultData, errPagination := GetLogVehiclePagination(
+		db,
+		reqData.CurrentPage,
+		reqData.Limit,
+		&reqData.VehicleID,
+		&reqData.MeasurementTitle,
+		reqData.SortOrder,
+		&userData.UserStamp,
+	)
+	if errPagination != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errPagination.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	baseResponse.Status = 200
+	baseResponse.Message = "get log vehicle data success"
+	baseResponse.Data = resultData
+	c.JSON(http.StatusOK, baseResponse)
+}
+
+func GetLogVehiclePagination(
+	db *gorm.DB,
+	currentPage int,
+	limit int,
+	vehicleId *string,
+	measurementTitle *string,
+	sortOrder *string,
+	userStamp *string,
+) (*resp.GetLogVehicleDataModelV2, error) {
+	// Handle limit with a maximum of 20
+	if limit > 15 {
+		limit = 15
+	} else if limit <= 0 {
+		limit = 10
+	}
+
+	// Ensure currentPage is at least 1
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+
+	offset := (currentPage - 1) * limit
+	var totalItems int64
+	var vehicles []vehicle.VehicleMeasurementLogModel
+	var result []resp.DataGetLogVehicleV2
+
+	// Count total items
+	query := db.Model(&vehicle.VehicleMeasurementLogModel{}).
+		Where("vehicle_measurement_log_models.user_stamp = ?", userStamp)
+
+	if sortOrder != nil && *sortOrder != "" {
+		query = query.Order("created_at " + *sortOrder)
+	} else {
+		query = query.Order("created_at desc")
+	}
+
+	if vehicleId != nil && *vehicleId != "" {
+		query = query.Where("vehicle_id = ?", *vehicleId)
+	}
+
+	if measurementTitle != nil && *measurementTitle != "" {
+		query = query.Where("measurement_title = ?", *measurementTitle)
+	}
+
+	query.Count(&totalItems)
+
+	// Pagination calculation
+	totalPages := int(totalItems) / limit
+	if int(totalItems)%limit != 0 {
+		totalPages++
+	}
+
+	// If currentPage exceeds totalPages, return empty list
+	if currentPage > totalPages {
+		return &resp.GetLogVehicleDataModelV2{
+			CurrentPage: currentPage,
+			NextPage:    0,
+			TotalPages:  totalPages,
+			TotalItems:  int(totalItems),
+			Data:        &[]resp.DataGetLogVehicleV2{},
+		}, nil
+	}
+
+	// Fetch monitor data with pagination
+	query = query.Limit(limit).Offset(offset).Find(&vehicles)
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	// Fetch corresponding user data for each monitor and prepare custom response
+	for _, vehicle := range vehicles {
+
+		dataVehicle := resp.DataGetLogVehicleV2{
+			Id:                  vehicle.Id,
+			UserId:              vehicle.UserId,
+			UserStamp:           vehicle.UserStamp,
+			VehicleId:           vehicle.VehicleId,
+			MeasurementTitle:    vehicle.MeasurementTitle,
+			CurrentOdo:          vehicle.CurrentOdo,
+			EstimateOdoChanging: vehicle.EstimateOdoChanging,
+			AmountExpenses:      vehicle.AmountExpenses,
+			CheckpointDate:      vehicle.CheckpointDate,
+			Notes:               vehicle.Notes,
+			CreatedAt:           vehicle.CreatedAt,
+			UpdatedAt:           vehicle.UpdatedAt,
+		}
+
+		result = append(result, dataVehicle)
+	}
+
+	// Calculate nextPage
+	nextPage := currentPage + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+
+	response2 := resp.GetLogVehicleDataModelV2{
+		CurrentPage: currentPage,
+		NextPage:    currentPage + 1,
+		TotalPages:  totalPages,
+		TotalItems:  int(totalItems),
+		Data:        &result,
+	}
+
+	return &response2, nil
+}
+
 func EditMeasurementLogVehicle(c *gin.Context) {
 	baseResponse := resp.EditMeasurementLogVehicleResponseModel{}
 

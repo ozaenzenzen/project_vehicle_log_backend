@@ -427,6 +427,7 @@ func EditProfile(c *gin.Context) {
 		return
 	}
 
+	stampToken := uuid.New().String()
 	inputNotifModel := notif.Notification{
 		// UserId:                  iduint,
 		UserStamp:               userStamp,
@@ -434,6 +435,7 @@ func EditProfile(c *gin.Context) {
 		NotificationDescription: "Anda Telah Mengubah Data Profile",
 		NotificationStatus:      0,
 		NotificationType:        0,
+		NotificationStamp:       stampToken,
 	}
 
 	resultNotif := db.Table("notifications").Create(&inputNotifModel)

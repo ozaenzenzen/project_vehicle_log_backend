@@ -12,6 +12,7 @@ type Notification struct {
 	NotificationDescription string    `gorm:"not null" json:"notification_description" validate:"required"`
 	NotificationStatus      uint      `gorm:"not null" json:"notification_status" validate:"required"`
 	NotificationType        uint      `gorm:"not null" json:"notification_type" validate:"required"`
+	NotificationStamp       string    `json:"notification_stamp"`
 	CreatedAt               time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt               time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

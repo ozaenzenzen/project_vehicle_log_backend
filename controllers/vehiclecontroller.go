@@ -8,7 +8,6 @@ import (
 	req "project_vehicle_log_backend/data/vehicle/request"
 	resp "project_vehicle_log_backend/data/vehicle/response"
 	helper "project_vehicle_log_backend/helper"
-	notif "project_vehicle_log_backend/models/notification"
 	vehicle "project_vehicle_log_backend/models/vehicle"
 
 	"github.com/gin-gonic/gin"
@@ -76,22 +75,32 @@ func CreateVehicle(c *gin.Context) {
 		return
 	}
 
-	inputNotifModel := notif.Notification{
-		UserId:                  userData.ID,
-		UserStamp:               *userStamp,
-		NotificationTitle:       "Add Vehicle",
-		NotificationDescription: "Anda Telah Menambahkan Kendaraan",
-		NotificationStatus:      0,
-		NotificationType:        0,
-	}
+	// stampToken := uuid.New().String()
+	// inputNotifModel := notif.Notification{
+	// 	UserId:                  userData.ID,
+	// 	UserStamp:               *userStamp,
+	// 	NotificationTitle:       "Add Vehicle",
+	// 	NotificationDescription: "Anda Telah Menambahkan Kendaraan",
+	// 	NotificationStatus:      0,
+	// 	NotificationType:        0,
+	// 	NotificationStamp:       stampToken,
+	// }
 
-	resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	if resultNotif.Error != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = result.Error.Error() + "Notif error"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
+	// if resultNotif.Error != nil {
+	// 	baseResponse.Status = http.StatusBadRequest
+	// 	baseResponse.Message = result.Error.Error() + "Notif error"
+	// 	c.JSON(http.StatusBadRequest, baseResponse)
+	// 	return
+	// }
+
+	helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Add Vehicle",
+		"Anda Telah Menambahkan Kendaraan",
+	)
 
 	baseResponse.Status = 201
 	baseResponse.Message = "Vehicle created successfully"
@@ -176,22 +185,32 @@ func EditVehicle(c *gin.Context) {
 		return
 	}
 
-	inputNotifModel := notif.Notification{
-		UserId:                  userData.ID,
-		UserStamp:               *userStamp,
-		NotificationTitle:       "Edit Vehicle",
-		NotificationDescription: "Anda Telah Mengubah Data Kendaraan",
-		NotificationStatus:      0,
-		NotificationType:        0,
-	}
+	// stampToken := uuid.New().String()
+	// inputNotifModel := notif.Notification{
+	// 	UserId:                  userData.ID,
+	// 	UserStamp:               *userStamp,
+	// 	NotificationTitle:       "Edit Vehicle",
+	// 	NotificationDescription: "Anda Telah Mengubah Data Kendaraan",
+	// 	NotificationStatus:      0,
+	// 	NotificationType:        0,
+	// 	NotificationStamp:       stampToken,
+	// }
 
-	resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	if resultNotif.Error != nil {
-		baseResponse.Status = 400
-		baseResponse.Message = result.Error.Error() + "Notif error"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
+	// if resultNotif.Error != nil {
+	// 	baseResponse.Status = 400
+	// 	baseResponse.Message = result.Error.Error() + "Notif error"
+	// 	c.JSON(http.StatusBadRequest, baseResponse)
+	// 	return
+	// }
+
+	helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Edit Vehicle",
+		"Anda Telah Mengubah Data Kendaraan",
+	)
 
 	baseResponse.Status = 201
 	baseResponse.Message = "Vehicle update successfully"
@@ -420,22 +439,32 @@ func CreateLogVehicle(c *gin.Context) {
 		return
 	}
 
-	inputNotifModel := notif.Notification{
-		UserId:                  userData.ID,
-		UserStamp:               *userStamp,
-		NotificationTitle:       "Add Vehicle Log",
-		NotificationDescription: "Anda Telah Menambahkan Log Kendaraan",
-		NotificationStatus:      0,
-		NotificationType:        0,
-	}
+	// stampToken := uuid.New().String()
+	// inputNotifModel := notif.Notification{
+	// 	UserId:                  userData.ID,
+	// 	UserStamp:               *userStamp,
+	// 	NotificationTitle:       "Add Vehicle Log",
+	// 	NotificationDescription: "Anda Telah Menambahkan Log Kendaraan",
+	// 	NotificationStatus:      0,
+	// 	NotificationType:        0,
+	// 	NotificationStamp:       stampToken,
+	// }
 
-	resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	if resultNotif.Error != nil {
-		baseResponse.Status = 400
-		baseResponse.Message = result.Error.Error() + "Notif error"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
+	// if resultNotif.Error != nil {
+	// 	baseResponse.Status = 400
+	// 	baseResponse.Message = result.Error.Error() + "Notif error"
+	// 	c.JSON(http.StatusBadRequest, baseResponse)
+	// 	return
+	// }
+
+	helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Add Vehicle Log",
+		"Anda Telah Menambahkan Log Kendaraan",
+	)
 
 	baseResponse.Status = 201
 	baseResponse.Message = "Create Log Vehicle successfully"
@@ -502,7 +531,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 		return
 	}
 
-	db, userStamp, userData, errorResp := helper.CustomValidatorAC(c)
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -560,22 +589,32 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 		return
 	}
 
-	inputNotifModel := notif.Notification{
-		UserId:                  userData.ID,
-		UserStamp:               *userStamp,
-		NotificationTitle:       "Edit Vehicle Log",
-		NotificationDescription: "Anda Telah Mengubah Log Kendaraan",
-		NotificationStatus:      0,
-		NotificationType:        0,
-	}
+	// stampToken := uuid.New().String()
+	// inputNotifModel := notif.Notification{
+	// 	UserId:                  userData.ID,
+	// 	UserStamp:               *userStamp,
+	// 	NotificationTitle:       "Edit Vehicle Log",
+	// 	NotificationDescription: "Anda Telah Mengubah Log Kendaraan",
+	// 	NotificationStatus:      0,
+	// 	NotificationType:        0,
+	// 	NotificationStamp:       stampToken,
+	// }
 
-	resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	if resultNotif.Error != nil {
-		baseResponse.Status = 400
-		baseResponse.Message = result.Error.Error() + "Notif error"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
+	// if resultNotif.Error != nil {
+	// 	baseResponse.Status = 400
+	// 	baseResponse.Message = result.Error.Error() + "Notif error"
+	// 	c.JSON(http.StatusBadRequest, baseResponse)
+	// 	return
+	// }
+
+	helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Edit Vehicle Log",
+		"Anda Telah Mengubah Log Kendaraan",
+	)
 
 	baseResponse.Status = 202
 	baseResponse.Message = "Edit Measurement Log Vehicle successfully"

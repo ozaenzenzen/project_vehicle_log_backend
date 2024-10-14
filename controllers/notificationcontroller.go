@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -31,7 +30,7 @@ func GetNotificationByUserId(c *gin.Context) {
 		})
 		return
 	}
-	if isValid == true {
+	if isValid {
 
 		var notificationList []notif.Notification
 
@@ -81,7 +80,7 @@ func GetNotificationByUserId(c *gin.Context) {
 		result := db.Table("notifications").Where("user_id = ?", c.Param("id")).Find(&notificationList)
 
 		if result.Value == nil {
-			log.Println(fmt.Sprintf("error log notification1: %s", result.Error))
+			fmt.Println("error log notification1: ", result.Error)
 			c.JSON(http.StatusInternalServerError, GetNotificationResponse{
 				Status:       500,
 				Message:      "get notification failed 1",

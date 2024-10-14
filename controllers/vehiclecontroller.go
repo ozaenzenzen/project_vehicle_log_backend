@@ -11,6 +11,7 @@ import (
 	vehicle "project_vehicle_log_backend/models/vehicle"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 )
@@ -209,6 +210,155 @@ func GetAllVehicleData(c *gin.Context) {
 	baseResponse.Message = "get all vehicle data success"
 	baseResponse.Data = &vehicles
 	c.JSON(http.StatusOK, baseResponse)
+}
+
+func GetAllVehicleDataV2(c *gin.Context) {
+	baseResponse := resp.GetAllVehicleDataResponseModelV2{}
+
+	var reqData req.GetAllVehicleDataRequestModelV2
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
+			Status:  http.StatusBadRequest,
+			Message: "Data tidak lengkap1",
+			Data:    nil,
+		})
+		return
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(reqData); err != nil {
+		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
+			Status:  http.StatusBadRequest,
+			Message: "Data tidak lengkap2",
+			Data:    nil,
+		})
+		return
+	}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		baseResponse.Data = nil
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	resultData, errPagination := GetAllVehiclePagination(
+		db,
+		reqData.CurrentPage,
+		reqData.Limit,
+		reqData.SortOrder,
+		&userData.UserStamp,
+	)
+	if errPagination != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errPagination.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	baseResponse.Status = 200
+	baseResponse.Message = "get all vehicle data success"
+	baseResponse.Data = resultData
+	c.JSON(http.StatusOK, baseResponse)
+}
+
+func GetAllVehiclePagination(
+	db *gorm.DB,
+	currentPage int,
+	limit int,
+	sortOrder *string,
+	userStamp *string,
+) (*resp.GetAllVehicleDataModelV2, error) {
+	// Handle limit with a maximum of 20
+	if limit > 15 {
+		limit = 15
+	} else if limit <= 0 {
+		limit = 10
+	}
+
+	// Ensure currentPage is at least 1
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+
+	offset := (currentPage - 1) * limit
+	var totalItems int64
+	var vehicles []vehicle.VehicleModel
+	var result []resp.DataGetAllVehicleV2
+
+	// Count total items
+	query := db.Model(&vehicle.VehicleModel{}).
+		Where("vehicle_models.user_stamp = ?", userStamp)
+
+	if sortOrder != nil && *sortOrder != "" {
+		query = query.Order("created_at " + *sortOrder)
+	} else {
+		query = query.Order("created_at desc")
+	}
+
+	query.Count(&totalItems)
+
+	// Pagination calculation
+	totalPages := int(totalItems) / limit
+	if int(totalItems)%limit != 0 {
+		totalPages++
+	}
+
+	// If currentPage exceeds totalPages, return empty list
+	if currentPage > totalPages {
+		return &resp.GetAllVehicleDataModelV2{
+			CurrentPage: currentPage,
+			NextPage:    0,
+			TotalPages:  totalPages,
+			TotalItems:  int(totalItems),
+			Data:        &[]resp.DataGetAllVehicleV2{},
+		}, nil
+	}
+
+	// Fetch monitor data with pagination
+	query = query.Limit(limit).Offset(offset).Find(&vehicles)
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	// Fetch corresponding user data for each monitor and prepare custom response
+	for _, vehicle := range vehicles {
+
+		dataVehicle := resp.DataGetAllVehicleV2{
+			Id:             vehicle.Id,
+			UserId:         vehicle.UserId,
+			UserStamp:      vehicle.UserStamp,
+			VehicleName:    vehicle.VehicleName,
+			VehicleImage:   vehicle.VehicleImage,
+			Year:           vehicle.Year,
+			EngineCapacity: vehicle.EngineCapacity,
+			TankCapacity:   vehicle.TankCapacity,
+			Color:          vehicle.Color,
+			MachineNumber:  vehicle.MachineNumber,
+			ChassisNumber:  vehicle.ChassisNumber,
+		}
+
+		result = append(result, dataVehicle)
+	}
+
+	// Calculate nextPage
+	nextPage := currentPage + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+
+	response2 := resp.GetAllVehicleDataModelV2{
+		CurrentPage: currentPage,
+		NextPage:    currentPage + 1,
+		TotalPages:  totalPages,
+		TotalItems:  int(totalItems),
+		Data:        &result,
+	}
+
+	return &response2, nil
 }
 
 func CreateLogVehicle(c *gin.Context) {

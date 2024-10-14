@@ -11,30 +11,15 @@ import (
 	vehicle "project_vehicle_log_backend/models/vehicle"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator"
 	"github.com/jinzhu/gorm"
 )
 
 func CreateVehicle(c *gin.Context) {
 	baseResponse := resp.CreateVehicleResponseModel{}
 
-	var createVehicleReq req.CreateVehicleRequestModel
-	if err := c.ShouldBindJSON(&createVehicleReq); err != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "Create Vehicle Failed"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	var reqBody req.CreateVehicleRequestModel
 
-	validate := validator.New()
-	if err := validate.Struct(createVehicleReq); err != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "validate error, field required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
-
-	db, userStamp, userData, errorResp := helper.CustomValidatorAC(c)
+	createVehicleReq, db, userStamp, userData, errorResp := helper.CustomValidatorWithRequestBody(c, reqBody)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -75,32 +60,19 @@ func CreateVehicle(c *gin.Context) {
 		return
 	}
 
-	// stampToken := uuid.New().String()
-	// inputNotifModel := notif.Notification{
-	// 	UserId:                  userData.ID,
-	// 	UserStamp:               *userStamp,
-	// 	NotificationTitle:       "Add Vehicle",
-	// 	NotificationDescription: "Anda Telah Menambahkan Kendaraan",
-	// 	NotificationStatus:      0,
-	// 	NotificationType:        0,
-	// 	NotificationStamp:       stampToken,
-	// }
-
-	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	// if resultNotif.Error != nil {
-	// 	baseResponse.Status = http.StatusBadRequest
-	// 	baseResponse.Message = result.Error.Error() + "Notif error"
-	// 	c.JSON(http.StatusBadRequest, baseResponse)
-	// 	return
-	// }
-
-	helper.InsertNotification(
+	respNotif := helper.InsertNotification(
 		c,
 		db,
 		userData,
 		"Add Vehicle",
 		"Anda Telah Menambahkan Kendaraan",
 	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
 
 	baseResponse.Status = 201
 	baseResponse.Message = "Vehicle created successfully"
@@ -110,23 +82,9 @@ func CreateVehicle(c *gin.Context) {
 func EditVehicle(c *gin.Context) {
 	baseResponse := resp.EditVehicleResponseModel{}
 
-	var editVehicleRequest req.EditVehicleRequestModel
-	if err := c.ShouldBindJSON(&editVehicleRequest); err != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "data required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	var reqBody req.EditVehicleRequestModel
 
-	validate := validator.New()
-	if err := validate.Struct(editVehicleRequest); err != nil {
-		baseResponse.Status = 400
-		baseResponse.Message = "validate error, field required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
-
-	db, userStamp, userData, errorResp := helper.CustomValidatorAC(c)
+	editVehicleRequest, db, userStamp, userData, errorResp := helper.CustomValidatorWithRequestBody(c, reqBody)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -185,32 +143,19 @@ func EditVehicle(c *gin.Context) {
 		return
 	}
 
-	// stampToken := uuid.New().String()
-	// inputNotifModel := notif.Notification{
-	// 	UserId:                  userData.ID,
-	// 	UserStamp:               *userStamp,
-	// 	NotificationTitle:       "Edit Vehicle",
-	// 	NotificationDescription: "Anda Telah Mengubah Data Kendaraan",
-	// 	NotificationStatus:      0,
-	// 	NotificationType:        0,
-	// 	NotificationStamp:       stampToken,
-	// }
-
-	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	// if resultNotif.Error != nil {
-	// 	baseResponse.Status = 400
-	// 	baseResponse.Message = result.Error.Error() + "Notif error"
-	// 	c.JSON(http.StatusBadRequest, baseResponse)
-	// 	return
-	// }
-
-	helper.InsertNotification(
+	respNotif := helper.InsertNotification(
 		c,
 		db,
 		userData,
 		"Edit Vehicle",
 		"Anda Telah Mengubah Data Kendaraan",
 	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
 
 	baseResponse.Status = 201
 	baseResponse.Message = "Vehicle update successfully"
@@ -263,111 +208,12 @@ func GetAllVehicleData(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 }
 
-// func GetAllVehicleDataOld(c *gin.Context) {
-// 	baseResponse := resp.GetAllVehicleDataResponseModel{}
-
-// 	db, _, userData, errorResp := helper.CustomValidatorAC(c)
-// 	if errorResp != nil {
-// 		baseResponse.Status = errorResp.Status
-// 		baseResponse.Message = errorResp.Message
-// 		baseResponse.Data = nil
-// 		c.JSON(errorResp.Status, baseResponse)
-// 		return
-// 	}
-
-// 	//--------check id--------check id--------check id--------
-// 	// var vehicles []vehicle.VehicleModel
-// 	var vehicleData []resp.GetAllVehicleDataModel
-
-// 	result := db.
-// 		Preload("VehicleMeasurementLogModels", func(db *gorm.DB) *gorm.DB {
-// 			return db.Select("id, user_id, vehicle_id, measurement_title, current_odo, estimate_odo_changing, amount_expenses, checkpoint_date, notes, created_at, updated_at")
-// 			// return db.Order("created_at DESC")
-// 		}).
-// 		Table("vehicle_models").
-// 		Where("user_id = ?", userData.ID).
-// 		Find(&vehicleData)
-
-// 	if result.Error != nil {
-// 		baseResponse.Status = 400
-// 		baseResponse.Message = result.Error.Error()
-// 		baseResponse.Data = nil
-// 		c.JSON(http.StatusBadRequest, baseResponse)
-// 		return
-// 	}
-
-// 	if result.Value == nil {
-// 		fmt.Println("error log3: ", result.Error)
-// 		baseResponse.Status = 404
-// 		baseResponse.Message = "get all vehicle data Failed"
-// 		baseResponse.Data = nil
-// 		c.JSON(http.StatusNotFound, baseResponse)
-// 		return
-// 	}
-
-// 	// Transform data into the desired response structure
-// 	var vehicleDataList []resp.GetAllVehicleDataModel
-// 	for _, vehicle := range vehicleDataList {
-// 		var measurementLogs []resp.GetAllVehicleMeasurementLogDataModel
-// 		for _, log := range *vehicle.VehicleMeasurementLogModels {
-// 			measurementLogs = append(measurementLogs, resp.GetAllVehicleMeasurementLogDataModel{
-// 				Id:                  log.Id,
-// 				UserId:              log.UserId,
-// 				VehicleId:           log.VehicleId,
-// 				MeasurementTitle:    log.MeasurementTitle,
-// 				CurrentOdo:          log.CurrentOdo,
-// 				EstimateOdoChanging: log.EstimateOdoChanging,
-// 				AmountExpenses:      log.AmountExpenses,
-// 				CheckpointDate:      log.CheckpointDate,
-// 				Notes:               log.Notes,
-// 				CreatedAt:           log.CreatedAt,
-// 				UpdatedAt:           log.UpdatedAt,
-// 			})
-// 		}
-
-// 		vehicleDataList = append(vehicleDataList, resp.GetAllVehicleDataModel{
-// 			Id:                          vehicle.Id,
-// 			UserId:                      vehicle.UserId,
-// 			VehicleName:                 vehicle.VehicleName,
-// 			VehicleImage:                vehicle.VehicleImage,
-// 			Year:                        vehicle.Year,
-// 			EngineCapacity:              vehicle.EngineCapacity,
-// 			TankCapacity:                vehicle.TankCapacity,
-// 			Color:                       vehicle.Color,
-// 			MachineNumber:               vehicle.MachineNumber,
-// 			ChassisNumber:               vehicle.ChassisNumber,
-// 			VehicleMeasurementLogModels: &measurementLogs,
-// 		})
-// 	}
-
-// 	baseResponse.Status = 200
-// 	baseResponse.Message = "get all vehicle data success"
-// 	baseResponse.Data = &vehicleDataList
-// 	c.JSON(http.StatusOK, baseResponse)
-// }
-
 func CreateLogVehicle(c *gin.Context) {
 	baseResponse := resp.CreateLogVehicleResponseModel{}
 
-	var createLogVehicle req.CreateLogVehicleRequestModel
-	if err := c.ShouldBindJSON(&createLogVehicle); err != nil {
-		fmt.Println("error log CreateLogVehicleResponse: ", err)
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "data required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	var reqBody req.CreateLogVehicleRequestModel
 
-	validate := validator.New()
-	if err := validate.Struct(&createLogVehicle); err != nil {
-		fmt.Println("error log2: ", err)
-		baseResponse.Status = 400
-		baseResponse.Message = "validate error, field required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
-
-	db, userStamp, userData, errorResp := helper.CustomValidatorAC(c)
+	createLogVehicle, db, userStamp, userData, errorResp := helper.CustomValidatorWithRequestBody(c, reqBody)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -439,32 +285,19 @@ func CreateLogVehicle(c *gin.Context) {
 		return
 	}
 
-	// stampToken := uuid.New().String()
-	// inputNotifModel := notif.Notification{
-	// 	UserId:                  userData.ID,
-	// 	UserStamp:               *userStamp,
-	// 	NotificationTitle:       "Add Vehicle Log",
-	// 	NotificationDescription: "Anda Telah Menambahkan Log Kendaraan",
-	// 	NotificationStatus:      0,
-	// 	NotificationType:        0,
-	// 	NotificationStamp:       stampToken,
-	// }
-
-	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	// if resultNotif.Error != nil {
-	// 	baseResponse.Status = 400
-	// 	baseResponse.Message = result.Error.Error() + "Notif error"
-	// 	c.JSON(http.StatusBadRequest, baseResponse)
-	// 	return
-	// }
-
-	helper.InsertNotification(
+	respNotif := helper.InsertNotification(
 		c,
 		db,
 		userData,
 		"Add Vehicle Log",
 		"Anda Telah Menambahkan Log Kendaraan",
 	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
 
 	baseResponse.Status = 201
 	baseResponse.Message = "Create Log Vehicle successfully"
@@ -513,25 +346,9 @@ func GetLogVehicle(c *gin.Context) {
 func EditMeasurementLogVehicle(c *gin.Context) {
 	baseResponse := resp.EditMeasurementLogVehicleResponseModel{}
 
-	var editMeasurementLogVehicle req.EditMeasurementLogVehicleRequestModel
-	if err := c.ShouldBindJSON(&editMeasurementLogVehicle); err != nil {
-		fmt.Println("error log EditMeasurementLogVehicleResponse: ", err)
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "data required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
+	var reqBody req.EditMeasurementLogVehicleRequestModel
 
-	validate := validator.New()
-	if err := validate.Struct(&editMeasurementLogVehicle); err != nil {
-		fmt.Println("error log2: ", err)
-		baseResponse.Status = 400
-		baseResponse.Message = "validate error, field required"
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
-
-	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	editMeasurementLogVehicle, db, _, userData, errorResp := helper.CustomValidatorWithRequestBody(c, reqBody)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -589,32 +406,19 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 		return
 	}
 
-	// stampToken := uuid.New().String()
-	// inputNotifModel := notif.Notification{
-	// 	UserId:                  userData.ID,
-	// 	UserStamp:               *userStamp,
-	// 	NotificationTitle:       "Edit Vehicle Log",
-	// 	NotificationDescription: "Anda Telah Mengubah Log Kendaraan",
-	// 	NotificationStatus:      0,
-	// 	NotificationType:        0,
-	// 	NotificationStamp:       stampToken,
-	// }
-
-	// resultNotif := db.Table("notifications").Create(&inputNotifModel)
-	// if resultNotif.Error != nil {
-	// 	baseResponse.Status = 400
-	// 	baseResponse.Message = result.Error.Error() + "Notif error"
-	// 	c.JSON(http.StatusBadRequest, baseResponse)
-	// 	return
-	// }
-
-	helper.InsertNotification(
+	respNotif := helper.InsertNotification(
 		c,
 		db,
 		userData,
 		"Edit Vehicle Log",
 		"Anda Telah Mengubah Log Kendaraan",
 	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
 
 	baseResponse.Status = 202
 	baseResponse.Message = "Edit Measurement Log Vehicle successfully"

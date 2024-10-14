@@ -10,6 +10,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator"
 	"github.com/jinzhu/gorm"
 )
 
@@ -318,6 +319,87 @@ func CustomValidatorAC(c *gin.Context) (*gorm.DB, *string, *account.AccountUserM
 	}
 
 	return db, &userStamp, &dataAccount, nil
+}
+
+func CustomValidatorWithRequestBody[T any](c *gin.Context, requestModel T) (*T, *gorm.DB, *string, *account.AccountUserModel, *baseResp.BaseResponseModel) {
+	if err := c.ShouldBindJSON(&requestModel); err != nil {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: "Data tidak lengkap1",
+			Data:    nil,
+		}
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(requestModel); err != nil {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: "Data tidak lengkap2",
+			Data:    nil,
+		}
+	}
+
+	header_token := c.Request.Header.Get("token")
+	if header_token == "" {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: "invalid credential3",
+			Data:    nil,
+		}
+	}
+
+	isValidToken, errVerifyToken := VerifyUserToken(header_token)
+	if errVerifyToken != nil || !isValidToken {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: "invalid credential4",
+			Data:    nil,
+		}
+	}
+
+	tokenRaw, err := DecodeUserToken(header_token)
+	if err != nil {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    nil,
+		}
+	}
+
+	var userStamp string
+	if resultUserStamp, ok := tokenRaw["user_stamp"].(string); ok {
+		userStamp = resultUserStamp
+	} else {
+		userStamp = ""
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusInternalServerError,
+			Message: "failed parsing",
+			Data:    nil,
+		}
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+	if db.Error != nil {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusInternalServerError,
+			Message: db.Error.Error(),
+			Data:    nil,
+		}
+	}
+
+	//--------check id--------check id--------check id--------
+	var dataAccount account.AccountUserModel
+	if err := db.Table("account_user_models").
+		Where("user_stamp = ?", userStamp).
+		First(&dataAccount).Error; err != nil {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: "User Data Not Found",
+			Data:    nil,
+		}
+	}
+
+	return &requestModel, db, &userStamp, &dataAccount, nil
 }
 
 // func HeaderPlatformValidator(c *gin.Context) (*string, *baseResp.BaseResponseModel) {

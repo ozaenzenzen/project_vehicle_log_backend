@@ -14,6 +14,7 @@ type VehicleModel struct {
 	Color          string    `json:"color"`
 	MachineNumber  string    `json:"machine_number"`
 	ChassisNumber  string    `json:"chassis_number"`
+	VehicleStamp   string    `json:"vehicle_stamp"`
 	CreatedAt      time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

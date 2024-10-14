@@ -11,6 +11,7 @@ import (
 	vehicle "project_vehicle_log_backend/models/vehicle"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 )
 
@@ -27,6 +28,7 @@ func CreateVehicle(c *gin.Context) {
 		return
 	}
 
+	vehicleStamp := uuid.New().String()
 	vehicleData := vehicle.VehicleModel{
 		UserId:         userData.ID,
 		UserStamp:      *userStamp,
@@ -38,6 +40,7 @@ func CreateVehicle(c *gin.Context) {
 		Color:          createVehicleReq.Color,
 		MachineNumber:  createVehicleReq.MachineNumber,
 		ChassisNumber:  createVehicleReq.ChassisNumber,
+		VehicleStamp:   vehicleStamp,
 	}
 
 	// result := db.Create(&vehicleData)
@@ -249,6 +252,7 @@ func CreateLogVehicle(c *gin.Context) {
 		}
 	}
 
+	logStamp := uuid.New().String()
 	createLogVehicleData := vehicle.VehicleMeasurementLogModel{
 		UserId:              userData.ID,
 		UserStamp:           *userStamp,
@@ -259,6 +263,7 @@ func CreateLogVehicle(c *gin.Context) {
 		AmountExpenses:      createLogVehicle.AmountExpenses,
 		CheckpointDate:      createLogVehicle.CheckpointDate,
 		Notes:               createLogVehicle.Notes,
+		LogStamp:            logStamp,
 	}
 	// Volunteers Status
 	// 0: idle

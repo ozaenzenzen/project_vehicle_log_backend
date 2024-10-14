@@ -13,6 +13,7 @@ type VehicleMeasurementLogModel struct {
 	AmountExpenses      string    `json:"amount_expenses"`
 	CheckpointDate      string    `json:"checkpoint_date"`
 	Notes               string    `json:"notes"`
+	LogStamp            string    `json:"log_stamp"`
 	CreatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

@@ -13,7 +13,7 @@ import (
 
 func InsertNotification(c *gin.Context, db *gorm.DB, userData *account.AccountUserModel, title string, description string) *baseResp.BaseResponseModel {
 	baseResponse := baseResp.BaseResponseModel{}
-	stampToken := uuid.New().String()
+	notificationStamp := uuid.New().String()
 	inputNotifModel := notif.Notification{
 		UserId:                  userData.ID,
 		UserStamp:               userData.UserStamp,
@@ -21,7 +21,7 @@ func InsertNotification(c *gin.Context, db *gorm.DB, userData *account.AccountUs
 		NotificationDescription: description,
 		NotificationStatus:      0,
 		NotificationType:        0,
-		NotificationStamp:       stampToken,
+		NotificationStamp:       notificationStamp,
 	}
 
 	resultNotif := db.Table("notifications").Create(&inputNotifModel)

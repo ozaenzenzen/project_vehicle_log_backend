@@ -212,6 +212,64 @@ func GetAllVehicleData(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 }
 
+func GetAllVehicleDataV3(c *gin.Context) {
+	baseResponse := resp.GetAllVehicleDataResponseModelV3{}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		baseResponse.Data = nil
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	var vehicles []resp.GetAllVehicleDataModelV3
+
+	// Fetch all vehicles first
+	if err := db.Table("vehicle_models").
+		Where("user_id = ?", userData.ID).
+		Find(&vehicles).Error; err != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Failed Fetching1"
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
+	}
+
+	// For each vehicle, fetch its measurement logs manually
+	for i := range vehicles {
+		var measurementLogs []resp.GetAllVehicleMeasurementLogDataModelV3
+		if err := db.Table("vehicle_measurement_log_models").
+			Where("vehicle_id = ?", vehicles[i].Id).
+			Find(&measurementLogs).Error; err != nil {
+			baseResponse.Status = http.StatusInternalServerError
+			baseResponse.Message = "Failed Fetching2"
+			baseResponse.Data = nil
+			c.JSON(http.StatusInternalServerError, baseResponse)
+			return
+		}
+		vehicles[i].VehicleMeasurementLogModels = &measurementLogs
+
+		// QUERY RAW
+		query := "SELECT measurement_title FROM vehicle_measurement_log_models WHERE vehicle_id = ? GROUP BY measurement_title"
+		measurementType := []string{}
+		if errQuery := db.Raw(query, vehicles[i].Id).Pluck("measurement_title", &measurementType).Error; errQuery != nil {
+			baseResponse.Status = http.StatusBadRequest
+			baseResponse.Message = errQuery.Error()
+			baseResponse.Data = nil
+			c.JSON(http.StatusBadRequest, baseResponse)
+			return
+		}
+		vehicles[i].MeasurementTitle = &measurementType
+	}
+
+	baseResponse.Status = 200
+	baseResponse.Message = "get all vehicle data success"
+	baseResponse.Data = &vehicles
+	c.JSON(http.StatusOK, baseResponse)
+}
+
 func GetAllVehicleDataV2(c *gin.Context) {
 	baseResponse := resp.GetAllVehicleDataResponseModelV2{}
 
@@ -327,18 +385,26 @@ func GetAllVehiclePagination(
 	// Fetch corresponding user data for each monitor and prepare custom response
 	for _, vehicle := range vehicles {
 
+		measurementType := []string{}
+		// QUERY RAW
+		query := "SELECT measurement_title FROM vehicle_measurement_log_models WHERE vehicle_id = ? GROUP BY measurement_title"
+		if errQuery := db.Raw(query, vehicle.Id).Pluck("measurement_title", &measurementType).Error; errQuery != nil {
+			return nil, errQuery
+		}
+
 		dataVehicle := resp.DataGetAllVehicleV2{
-			Id:             vehicle.Id,
-			UserId:         vehicle.UserId,
-			UserStamp:      vehicle.UserStamp,
-			VehicleName:    vehicle.VehicleName,
-			VehicleImage:   vehicle.VehicleImage,
-			Year:           vehicle.Year,
-			EngineCapacity: vehicle.EngineCapacity,
-			TankCapacity:   vehicle.TankCapacity,
-			Color:          vehicle.Color,
-			MachineNumber:  vehicle.MachineNumber,
-			ChassisNumber:  vehicle.ChassisNumber,
+			Id:               vehicle.Id,
+			UserId:           vehicle.UserId,
+			UserStamp:        vehicle.UserStamp,
+			VehicleName:      vehicle.VehicleName,
+			VehicleImage:     vehicle.VehicleImage,
+			Year:             vehicle.Year,
+			EngineCapacity:   vehicle.EngineCapacity,
+			TankCapacity:     vehicle.TankCapacity,
+			Color:            vehicle.Color,
+			MachineNumber:    vehicle.MachineNumber,
+			ChassisNumber:    vehicle.ChassisNumber,
+			MeasurementTitle: &measurementType,
 		}
 
 		result = append(result, dataVehicle)

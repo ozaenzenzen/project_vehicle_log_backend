@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -302,7 +303,9 @@ func GetAllVehicleDataV2(c *gin.Context) {
 		return
 	}
 
-	resultData, errPagination := GetAllVehiclePagination(
+	// resultData, errPagination := GetAllVehiclePagination(
+	// resultData, errPagination := GetAllVehiclePaginationUsingRaw(
+	resultData, errPagination := GetAllVehiclePaginationUsingRawV2(
 		db,
 		reqData.CurrentPage,
 		reqData.Limit,
@@ -425,6 +428,260 @@ func GetAllVehiclePagination(
 	}
 
 	return &response2, nil
+}
+
+func GetAllVehiclePaginationUsingRaw(
+	db *gorm.DB,
+	currentPage int,
+	limit int,
+	sortOrder *string,
+	userStamp *string,
+) (*resp.GetAllVehicleDataModelV2, error) {
+	// Handle limit with a maximum of 20
+	if limit > 15 {
+		limit = 15
+	} else if limit <= 0 {
+		limit = 10
+	}
+
+	// Ensure currentPage is at least 1
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+
+	offset := (currentPage - 1) * limit
+	var totalItems int64
+	// var vehicles []vehicle.VehicleModel
+	var result []resp.DataGetAllVehicleV2
+
+	// Count total items
+	query := db.Model(&vehicle.VehicleModel{}).
+		Where("vehicle_models.user_stamp = ?", userStamp)
+
+	if sortOrder != nil && *sortOrder != "" {
+		query = query.Order("created_at " + *sortOrder)
+	} else {
+		query = query.Order("created_at desc")
+	}
+
+	query.Count(&totalItems)
+
+	// Pagination calculation
+	totalPages := int(totalItems) / limit
+	if int(totalItems)%limit != 0 {
+		totalPages++
+	}
+
+	// If currentPage exceeds totalPages, return empty list
+	if currentPage > totalPages {
+		return &resp.GetAllVehicleDataModelV2{
+			CurrentPage: currentPage,
+			NextPage:    0,
+			TotalPages:  totalPages,
+			TotalItems:  int(totalItems),
+			Data:        &[]resp.DataGetAllVehicleV2{},
+		}, nil
+	}
+
+	// Fetch monitor data with pagination
+	// query = query.Limit(limit).Offset(offset).Find(&vehicles)
+	// Query vehicle data and join with measurement data
+	query1 := `
+		SELECT v.id, v.user_id, v.user_stamp, v.vehicle_name, v.vehicle_image, v.year, v.engine_capacity, v.tank_capacity, 
+			   v.color, v.machine_number, v.chassis_number, GROUP_CONCAT(m.measurement_title) as measurment_title
+		FROM vehicle_models v
+		LEFT JOIN vehicle_measurement_log_models m ON v.id = m.vehicle_id
+		GROUP BY v.id
+		LIMIT ? OFFSET ?
+		`
+
+	// Query raw SQL
+	db.Raw(query1, limit, offset).Scan(&result)
+	if query.Error != nil {
+		return nil, query.Error
+	}
+
+	// Fetch corresponding user data for each monitor and prepare custom response
+	// for _, vehicle := range vehicles {
+
+	// 	measurementType := []string{}
+	// 	// QUERY RAW
+	// 	query := "SELECT measurement_title FROM vehicle_measurement_log_models WHERE vehicle_id = ? GROUP BY measurement_title"
+	// 	if errQuery := db.Raw(query, vehicle.Id).Pluck("measurement_title", &measurementType).Error; errQuery != nil {
+	// 		return nil, errQuery
+	// 	}
+
+	// 	dataVehicle := resp.DataGetAllVehicleV2{
+	// 		Id:               vehicle.Id,
+	// 		UserId:           vehicle.UserId,
+	// 		UserStamp:        vehicle.UserStamp,
+	// 		VehicleName:      vehicle.VehicleName,
+	// 		VehicleImage:     vehicle.VehicleImage,
+	// 		Year:             vehicle.Year,
+	// 		EngineCapacity:   vehicle.EngineCapacity,
+	// 		TankCapacity:     vehicle.TankCapacity,
+	// 		Color:            vehicle.Color,
+	// 		MachineNumber:    vehicle.MachineNumber,
+	// 		ChassisNumber:    vehicle.ChassisNumber,
+	// 		MeasurementTitle: &measurementType,
+	// 	}
+
+	// 	result = append(result, dataVehicle)
+	// }
+
+	// Calculate nextPage
+	nextPage := currentPage + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+
+	response2 := resp.GetAllVehicleDataModelV2{
+		CurrentPage: currentPage,
+		NextPage:    currentPage + 1,
+		TotalPages:  totalPages,
+		TotalItems:  int(totalItems),
+		Data:        &result,
+	}
+
+	return &response2, nil
+}
+
+func GetAllVehiclePaginationUsingRawV2(
+	db *gorm.DB,
+	currentPage int,
+	limit int,
+	sortOrder *string,
+	userStamp *string,
+) (*resp.GetAllVehicleDataModelV2, error) {
+	// Handle limit with a maximum of 15
+	if limit > 15 {
+		limit = 15
+	} else if limit <= 0 {
+		limit = 10
+	}
+
+	// Ensure currentPage is at least 1
+	if currentPage <= 0 {
+		currentPage = 1
+	}
+
+	offset := (currentPage - 1) * limit
+	var totalItems int64
+	var result []resp.DataGetAllVehicleV2
+
+	// Query to count the total number of items
+	query := db.Model(&vehicle.VehicleModel{}).
+		Where("vehicle_models.user_stamp = ?", userStamp)
+
+	// Sorting order
+	if sortOrder != nil && *sortOrder != "" {
+		query = query.Order("created_at " + *sortOrder)
+	} else {
+		query = query.Order("created_at desc")
+	}
+
+	// Get total count
+	query.Count(&totalItems)
+
+	// Pagination calculation
+	totalPages := int(totalItems) / limit
+	if int(totalItems)%limit != 0 {
+		totalPages++
+	}
+
+	// If currentPage exceeds totalPages, return empty list
+	if currentPage > totalPages {
+		return &resp.GetAllVehicleDataModelV2{
+			CurrentPage: currentPage,
+			NextPage:    0,
+			TotalPages:  totalPages,
+			TotalItems:  int(totalItems),
+			Data:        &[]resp.DataGetAllVehicleV2{},
+		}, nil
+	}
+
+	// Raw SQL query with JOIN to fetch data
+	rawQuery := `
+			SELECT
+				v.id,
+				v.user_id,
+				v.user_stamp,
+				v.vehicle_name,
+				v.vehicle_image,
+				v.year,
+				v.engine_capacity,
+				v.tank_capacity,
+				v.color,
+				v.machine_number,
+				v.chassis_number,
+				(
+			        SELECT 
+			            IFNULL(JSON_ARRAYAGG(measurements.measurement_title), '[]') 
+			        FROM 
+			        (
+			            SELECT DISTINCT m.measurement_title 
+			            FROM vehicle_measurement_log_models m 
+			            WHERE m.vehicle_id = v.id
+			        ) AS measurements
+			    ) AS measurement_title
+			FROM vehicle_models v
+			LEFT JOIN vehicle_measurement_log_models m ON m.vehicle_id = v.id
+			WHERE v.user_stamp = ?
+			GROUP BY v.id
+			ORDER BY v.created_at DESC
+			LIMIT ? OFFSET ?`
+
+	// Execute the query
+	if err := db.Raw(rawQuery, userStamp, limit, offset).Scan(&result).Error; err != nil {
+		return nil, err
+	}
+
+	// Unmarshal MeasurementTitle JSON into a slice
+	for i := range result {
+		// Example with string
+		var value2 any = result[i].MeasurementTitle
+		bytes2, errConvert := convertToBytes(value2)
+		if errConvert != nil {
+			fmt.Println("Error:", errConvert)
+			return nil, errConvert
+		} else {
+			//
+		}
+
+		var titles []string
+		if err := json.Unmarshal([]byte(bytes2), &titles); err != nil {
+			return nil, err
+		}
+		result[i].MeasurementTitle = titles // Set the unmarshaled result back to the struct
+	}
+
+	// Calculate nextPage
+	nextPage := currentPage + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+
+	// Prepare the final response
+	response := resp.GetAllVehicleDataModelV2{
+		CurrentPage: currentPage,
+		NextPage:    nextPage,
+		TotalPages:  totalPages,
+		TotalItems:  int(totalItems),
+		Data:        &result,
+	}
+
+	return &response, nil
+}
+
+func convertToBytes(value any) ([]byte, error) {
+	switch v := value.(type) {
+	case []byte:
+		return v, nil // Directly return if it's already []byte
+	case string:
+		return []byte(v), nil // Convert string to []byte
+	default:
+		return nil, fmt.Errorf("unsupported type: %T", v) // Handle unsupported types
+	}
 }
 
 func CreateLogVehicle(c *gin.Context) {

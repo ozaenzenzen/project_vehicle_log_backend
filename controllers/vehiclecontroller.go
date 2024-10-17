@@ -601,6 +601,37 @@ func GetAllVehiclePaginationUsingRawV2(
 	}
 
 	// Raw SQL query with JOIN to fetch data
+	// rawQuery := `
+	// SELECT
+	// 	v.id,
+	// 	v.user_id,
+	// 	v.user_stamp,
+	// 	v.vehicle_name,
+	// 	v.vehicle_image,
+	// 	v.year,
+	// 	v.engine_capacity,
+	// 	v.tank_capacity,
+	// 	v.color,
+	// 	v.machine_number,
+	// 	v.chassis_number,
+	// 	(
+	//         SELECT
+	//             IFNULL(JSON_ARRAYAGG(measurements.measurement_title), '[]')
+	//         FROM
+	//         (
+	//             SELECT DISTINCT m.measurement_title
+	//             FROM vehicle_measurement_log_models m
+	//             WHERE m.vehicle_id = v.id
+	//         ) AS measurements
+	//     ) AS measurement_title
+	// FROM vehicle_models v
+	// LEFT JOIN vehicle_measurement_log_models m ON m.vehicle_id = v.id
+	// WHERE v.user_stamp = ?
+	// GROUP BY v.id
+	// ORDER BY v.created_at DESC
+	// LIMIT ? OFFSET ?`
+
+	// For mariadb 10.4 and below
 	rawQuery := `
 			SELECT
 				v.id,
@@ -615,22 +646,24 @@ func GetAllVehiclePaginationUsingRawV2(
 				v.machine_number,
 				v.chassis_number,
 				(
-			        SELECT 
-			            IFNULL(JSON_ARRAYAGG(measurements.measurement_title), '[]') 
-			        FROM 
+			        SELECT
+			            IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', m.measurement_title, '"')), ']'),'[]')
+			        FROM
 			        (
-			            SELECT DISTINCT m.measurement_title 
-			            FROM vehicle_measurement_log_models m 
-			            WHERE m.vehicle_id = v.id
+			            SELECT DISTINCT m.measurement_title
+			            FROM vehicle_measurement_log_models m
+			            WHERE m.vehicle_id = id
 			        ) AS measurements
 			    ) AS measurement_title
 			FROM vehicle_models v
 			LEFT JOIN vehicle_measurement_log_models m ON m.vehicle_id = v.id
 			WHERE v.user_stamp = ?
-			GROUP BY v.id
+			GROUP BY id
 			ORDER BY v.created_at DESC
 			LIMIT ? OFFSET ?`
 
+	// IFNULL(JSON_ARRAYAGG(measurements.measurement_title), '[]')
+	// CONCAT('[', GROUP_CONCAT(CONCAT(measurements.measurement_title)), ']')
 	// Execute the query
 	if err := db.Raw(rawQuery, userStamp, limit, offset).Scan(&result).Error; err != nil {
 		return nil, err
@@ -644,8 +677,6 @@ func GetAllVehiclePaginationUsingRawV2(
 		if errConvert != nil {
 			fmt.Println("Error:", errConvert)
 			return nil, errConvert
-		} else {
-			//
 		}
 
 		var titles []string

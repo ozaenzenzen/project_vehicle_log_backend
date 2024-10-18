@@ -266,6 +266,14 @@ func EditProfile(c *gin.Context) {
 		return
 	}
 
+	result := db.Table("account_user_models").Where("id = ?", userData.ID).Update(editProfileReq)
+	if result.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Terjadi kesalahan"
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
 	respNotif := helper.InsertNotification(
 		c,
 		db,

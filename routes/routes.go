@@ -39,7 +39,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	// r.POST("/event/submitevent", controllers.SubmitEvent)
 	// r.GET("/event/getlistvolunteers/:id", controllers.GetListVolunteer) //event id
 
-	r.GET("/notifications/:id", controllers.GetNotificationByUserId) //user id
+	r.POST("/notifications/getnotification", controllers.GetNotification) //user id
 
 	r.NoRoute(func(c *gin.Context) {
 		// response := map[string]interface{}{

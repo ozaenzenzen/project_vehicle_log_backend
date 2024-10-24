@@ -1,8 +1,14 @@
-package models
+package data
 
 import "time"
 
-type VehicleMeasurementLogModel struct {
+type GetLogVehicleResponseModel struct {
+	Status  int                       `json:"status"`
+	Message string                    `json:"message"`
+	Data    *[]GetLogVehicleDataModel `json:"Data"`
+}
+
+type GetLogVehicleDataModel struct {
 	Id                  uint      `json:"id" gorm:"primary_key"`
 	UserId              uint      `json:"user_id"`
 	UserStamp           string    `json:"user_stamp"`
@@ -13,7 +19,6 @@ type VehicleMeasurementLogModel struct {
 	AmountExpenses      string    `json:"amount_expenses"`
 	CheckpointDate      string    `json:"checkpoint_date"`
 	Notes               string    `json:"notes"`
-	LogStamp            string    `json:"log_stamp"`
 	CreatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

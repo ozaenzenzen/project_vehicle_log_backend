@@ -1,411 +1,295 @@
 package controllers
 
 import (
-	"fmt"
-	"log"
 	"net/http"
-	jwthelper "project_vehicle_log_backend/helper"
+	req "project_vehicle_log_backend/data/account/request"
+	resp "project_vehicle_log_backend/data/account/response"
+	helper "project_vehicle_log_backend/helper"
+
+	// account "project_vehicle_log_backend/models/account"
 	account "project_vehicle_log_backend/models/account"
-	user "project_vehicle_log_backend/models/account"
-	notif "project_vehicle_log_backend/models/notification"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
+	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 )
 
-type AccountSingUpResponse struct {
-	Status  int                           `json:"status"`
-	Message string                        `json:"message"`
-	Data    *AccountUserDataResponseModel `json:"account_data"`
-}
+func RefreshToken(c *gin.Context) {
+	baseResponse := resp.RefreshTokenResponseModel{}
 
-// ID       uint   `json:"id"`
-type AccountUserData struct {
-	Name            string `gorm:"not null" json:"name"  binding:"required,max=30"`
-	Email           string `gorm:"not null" json:"email" binding:"required"`
-	Phone           string `gorm:"not null" json:"phone"  binding:"required,max=14"`
-	Password        string `gorm:"not null" json:"password" binding:"required"`
-	ConfirmPassword string `gorm:"not null" json:"confirmPassword" binding:"required"`
-}
+	db, userStamp, _, errorResp := helper.CustomValidatorWithRefreshToken(c, true)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		baseResponse.Data = nil
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
 
-type AccountUserDataResponseModel struct {
-	UserId uint   `json:"user_id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Phone  string `json:"phone"`
+	accessToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(*userStamp) // using stamp
+	if errGenerateJWT != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Failed to generate token"
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
+	}
+
+	// store refresh token
+	storeRefreshToken := db.Table("account_user_models").
+		Where("user_stamp = ?", *userStamp).
+		Update(&req.RefreshTokenRequestModel{RefreshToken: refreshToken})
+	if storeRefreshToken.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "error storing"
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Refresh Token Success"
+	baseResponse.Data = &resp.RefreshTokenDataModel{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}
+	c.JSON(http.StatusOK, baseResponse)
 }
 
 func SignUpAccount(c *gin.Context) {
-	var accountInput AccountUserData
-	if err := c.ShouldBindJSON(&accountInput); err != nil {
-		// log.Println(fmt.Sprintf("error logX: %s", err))
-		// log.Println(fmt.Sprintf("error logX1: %s", err.Error()))
+	baseResponse := resp.AccountSignUpResponseModel{}
 
-		c.JSON(http.StatusBadRequest, AccountSingUpResponse{
-			Status:  500,
-			Message: err.Error(),
-			Data:    nil,
-		})
+	var signUpReq req.AccountSignUpRequestModel
+	if errBindJSON := c.ShouldBindJSON(&signUpReq); errBindJSON != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data tidak lengkap"
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
 
 	validate := validator.New()
-
-	if err := validate.Struct(accountInput); err != nil {
-		log.Println(fmt.Sprintf("error log2: %s", err))
-		c.JSON(http.StatusBadRequest, AccountSingUpResponse{
-			Status:  500,
+	if errValidate := validate.Struct(signUpReq); errValidate != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data tidak lengkap"
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, resp.AccountSignUpResponseModel{
+			Status:  http.StatusBadRequest,
 			Message: "Data tidak lengkap",
 			Data:    nil,
 		})
 		return
 	}
-	accountResponsePayload := user.AccountUserModel{
-		Name:            accountInput.Name,
-		Email:           accountInput.Email,
-		Phone:           accountInput.Phone,
-		Password:        accountInput.Password,
-		ConfirmPassword: accountInput.ConfirmPassword,
+
+	hashPw, errPw := helper.HashPassword(signUpReq.Password)
+	if errPw != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = errPw.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
+	}
+
+	hashCpw, errCpw := helper.HashPassword(signUpReq.ConfirmPassword)
+	if errCpw != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = errCpw.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
+	}
+
+	stampToken := uuid.New().String()
+
+	insertDBPayload := account.AccountUserModel{
+		Name:            signUpReq.Name,
+		Email:           signUpReq.Email,
+		UserStamp:       stampToken,
+		Phone:           signUpReq.Phone,
+		Password:        hashPw,
+		ConfirmPassword: hashCpw,
 	}
 
 	db := c.MustGet("db").(*gorm.DB)
 	if db.Error != nil {
-		c.JSON(http.StatusBadRequest, AccountSingUpResponse{
-			Status:  400,
-			Message: db.Error.Error(),
-			Data:    nil,
-		})
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = db.Error.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
 		return
 	}
 
-	result := db.FirstOrCreate(&accountResponsePayload, user.AccountUserModel{Email: accountInput.Email})
-
-	if result.Value == nil && result.RowsAffected == 0 {
-		// log.Println(fmt.Sprintf("log SignUpAccountV2 Value: %s", result.Value))
-		// log.Println(fmt.Sprintf("log SignUpAccountV2 RowsAffected: %d", result.RowsAffected))
-		c.JSON(http.StatusBadRequest, AccountSingUpResponse{
-			Status:  400,
-			Message: "Record found",
-			Data:    nil,
-		})
-		return
-	}
-
-	createAccountResponse := AccountSingUpResponse{
-		Status:  201,
-		Message: "Account created successfully",
-		Data: &AccountUserDataResponseModel{
-			UserId: accountResponsePayload.ID,
-			Name:   accountInput.Name,
-			Email:  accountInput.Email,
-			Phone:  accountInput.Phone,
+	result := db.FirstOrCreate(
+		&insertDBPayload,
+		account.AccountUserModel{
+			Email: signUpReq.Email,
 		},
+	)
+	if result.Value == nil && result.RowsAffected == 0 {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Record found"
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
 	}
 
-	c.JSON(http.StatusCreated, createAccountResponse)
-}
-
-type UserDataModelSignIn struct {
-	ID    uint   `json:"id" gorm:"primary_key"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Phone string `json:"phone"`
-	Token string `json:"token"`
-}
-
-type AccountUserSignInRequest struct {
-	Email    string `gorm:"not null" json:"email"  binding:"required"`
-	Password string `gorm:"not null" json:"password"  binding:"required"`
-}
-
-type AccountUserSignInResponse struct {
-	Status   int                  `json:"status"`
-	Message  string               `json:"message"`
-	UserData *UserDataModelSignIn `json:"userdata"`
+	baseResponse.Status = http.StatusCreated
+	baseResponse.Message = "Account Created Successfully"
+	baseResponse.Data = &resp.AccountSignUpDataModel{
+		UserId:    insertDBPayload.ID,
+		UserStamp: insertDBPayload.UserStamp,
+		Name:      signUpReq.Name,
+		Email:     signUpReq.Email,
+		Phone:     signUpReq.Phone,
+	}
+	c.JSON(http.StatusCreated, baseResponse)
 }
 
 func SignInAccount(c *gin.Context) {
-	var table user.AccountUserModel
-	var dataUser AccountUserSignInRequest
-	if err := c.ShouldBindJSON(&dataUser); err != nil {
-		c.JSON(http.StatusBadRequest, AccountUserSignInResponse{
-			Status:  http.StatusBadRequest,
-			Message: err.Error(),
-		})
+	baseResponse := resp.AccountSignInResponseModel{}
+
+	var signInReq req.AccountSignInRequestModel
+	if errBindJSON := c.ShouldBindJSON(&signInReq); errBindJSON != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data belum lengkap"
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
+
 	db := c.MustGet("db").(*gorm.DB)
-
-	result := db.Where("email = ?", dataUser.Email).Where("password = ?", dataUser.Password).First(&table)
-	// log.Println(fmt.Sprintf("log signin Value: %s", result.Value))
-	if result.Error != nil {
-		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
-			Status:   http.StatusNotFound,
-			Message:  "Account not match",
-			UserData: nil,
-		})
+	if db.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = db.Error.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
 		return
 	}
 
-	tokenString, err := jwthelper.GenerateJWTToken(strconv.FormatUint(uint64(table.ID), 10), dataUser.Email)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, AccountUserSignInResponse{
-			Status:   http.StatusInternalServerError,
-			Message:  "Failed to generate token",
-			UserData: nil,
-		})
+	var tableAccount account.AccountUserModel
+	resultCheckEmail := db.Where("email = ?", signInReq.Email).
+		First(&tableAccount)
+	if resultCheckEmail.Error != nil {
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Invalid user email or password"
+		baseResponse.Data = nil
+		c.JSON(http.StatusUnauthorized, baseResponse)
 		return
 	}
 
-	accountSignInResponse := AccountUserSignInResponse{
-		Status:  200,
-		Message: "Account SignIn Successfully",
-		// Typeuser: &dataUser.Typeuser,
-		UserData: &UserDataModelSignIn{
-			ID:    table.ID,
-			Name:  table.Name,
-			Email: dataUser.Email,
-			Phone: table.Phone,
-			Token: tokenString,
-		},
+	checkHashPw := helper.CheckPasswordHash(signInReq.Password, tableAccount.Password)
+	if !checkHashPw {
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Invalid user email or password"
+		baseResponse.Data = nil
+		c.JSON(http.StatusUnauthorized, baseResponse)
+		return
 	}
 
-	c.JSON(http.StatusOK, accountSignInResponse)
-}
+	userToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(tableAccount.UserStamp) // using stamp
+	if errGenerateJWT != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Failed to generate token"
+		baseResponse.Data = nil
+		c.JSON(http.StatusNotFound, baseResponse)
+		return
+	}
 
-type GetUserDataModel struct {
-	ID             uint   `json:"id" gorm:"primary_key"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	Phone          string `json:"phone"`
-	ProfilePicture string `json:"profile_picture"`
-}
+	// store refresh token
+	storeRefreshToken := db.Table("account_user_models").
+		Where("user_stamp = ?", tableAccount.UserStamp).
+		Update(&req.RefreshTokenRequestModel{RefreshToken: refreshToken})
+	if storeRefreshToken.Error != nil {
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Failed Storing"
+		baseResponse.Data = nil
+		c.JSON(http.StatusUnauthorized, baseResponse)
+		return
+	}
 
-type AccountUserGetUserResponse struct {
-	Status   int               `json:"status"`
-	Message  string            `json:"message"`
-	UserData *GetUserDataModel `json:"userdata"`
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Account SignIn Successfully"
+	baseResponse.Data = &resp.AccountSignInDataModel{
+		ID:           tableAccount.ID,
+		Name:         tableAccount.Name,
+		UserStamp:    tableAccount.UserStamp,
+		Email:        signInReq.Email,
+		Phone:        tableAccount.Phone,
+		Token:        userToken,
+		RefreshToken: refreshToken,
+	}
+
+	c.JSON(http.StatusOK, baseResponse)
 }
 
 func GetUserData(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	headertoken := c.Request.Header.Get("token")
+	baseResponse := resp.GetUserDataResponseModel{}
 
-	if headertoken == "" {
-		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-			Status:  400,
-			Message: "token empty",
-		})
-		return
-	}
-	isValid, err := jwthelper.VerifyToken(headertoken)
-
-	if isValid == true {
-		if err != nil {
-			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-				Status:   http.StatusBadRequest,
-				Message:  err.Error(),
-				UserData: nil,
-			})
-			return
-		}
-
-		var userData user.AccountUserModel
-
-		tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
-		// fmt.Printf("\ntoken raw %v", tokenRaw)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-				Status:   http.StatusBadRequest,
-				Message:  err.Error(),
-				UserData: nil,
-			})
-			return
-		}
-
-		emails := tokenRaw["email"].(string)
-
-		// if err := db.Where("id = ?", c.Param("id")).First(&userData).Error; err != nil {
-		if err := db.Where("email = ?", emails).First(&userData).Error; err != nil {
-			c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-				Status:   400,
-				Message:  "User Data Not Found",
-				UserData: nil,
-			})
-			return
-		}
-
-		c.JSON(http.StatusOK, AccountUserGetUserResponse{
-			Status:  200,
-			Message: "get user data success",
-			UserData: &GetUserDataModel{
-				ID:             userData.ID,
-				Name:           userData.Name,
-				Email:          userData.Email,
-				Phone:          userData.Phone,
-				ProfilePicture: userData.ProfilePicture,
-			},
-		})
-		return
-	} else {
-		c.JSON(http.StatusBadRequest, AccountUserGetUserResponse{
-			Status:   http.StatusBadRequest,
-			Message:  "invalid token",
-			UserData: nil,
-		})
+	_, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		c.JSON(errorResp.Status, baseResponse)
 		return
 	}
 
-}
-
-type EditProfileRequest struct {
-	ProfilePicture string `json:"profile_picture"`
-	Name           string `json:"name"`
-}
-
-type EditProfileResponse struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-func checkIDHelper(c *gin.Context, db *gorm.DB, ids string, out interface{}) error {
-	//--------check id--------check id--------check id--------
-	iduint64, err := strconv.ParseUint(ids, 10, 32)
-
-	if err != nil {
-		return err
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Get User Data Successfully"
+	baseResponse.Data = &resp.GetUserDataModel{
+		ID:             userData.ID,
+		UserStamp:      userData.UserStamp,
+		Name:           userData.Name,
+		Email:          userData.Email,
+		Phone:          userData.Phone,
+		ProfilePicture: userData.ProfilePicture,
 	}
-	iduint := uint(iduint64)
-
-	checkID := db.Table("account_user_models").Where("id = ?", ids).Find(&account.AccountUserModel{
-		ID: iduint,
-	})
-
-	if checkID.Error != nil {
-
-		return checkID.Error
-	}
-	//--------check id--------check id--------check id--------
-	return nil
+	c.JSON(http.StatusOK, baseResponse)
 }
 
 func EditProfile(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	headertoken := c.Request.Header.Get("token")
-	if headertoken == "" {
-		c.JSON(http.StatusBadRequest, EditProfileResponse{
-			Status:  400,
-			Message: "token empty",
-		})
-		return
-	}
-	isValid, err := jwthelper.VerifyToken(headertoken)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, EditProfileResponse{
-			Status:  http.StatusBadRequest,
-			Message: err.Error(),
-		})
+	baseResponse := resp.GetUserDataResponseModel{}
+
+	var editProfileReq req.EditProfileRequesModel
+	if err := c.ShouldBindJSON(&editProfileReq); err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data Tidak Lengkap"
+		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
 
-	if isValid == true {
-		var editProfileRequest EditProfileRequest
-		if err := c.ShouldBindJSON(&editProfileRequest); err != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  500,
-				Message: err.Error(),
-			})
-			return
-		}
-		tokenRaw, err := jwthelper.DecodeJWTToken(headertoken)
-		// fmt.Printf("\ntoken raw %v", tokenRaw)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  http.StatusBadRequest,
-				Message: err.Error(),
-			})
-			return
-		}
-
-		ids := tokenRaw["uid"].(string)
-
-		//--------check id--------check id--------check id--------
-
-		iduint64, err := strconv.ParseUint(ids, 10, 32)
-
-		if err != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  500,
-				Message: "error parsing",
-			})
-			return
-		}
-		iduint := uint(iduint64)
-
-		checkID := db.Table("account_user_models").Where("id = ?", ids).Find(&account.AccountUserModel{
-			ID: iduint,
-		})
-
-		if checkID.Error != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  400,
-				Message: checkID.Error.Error(),
-			})
-			return
-		}
-
-		//--------check id--------check id--------check id--------
-
-		if db.Error != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  400,
-				Message: db.Error.Error(),
-			})
-			return
-		}
-		// result := db.Create(&vehicleDataOutput)
-		result := db.Table("account_user_models").Where("id = ?", ids).Update(&editProfileRequest)
-
-		if result.Error != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  400,
-				Message: result.Error.Error(),
-			})
-			return
-		}
-
-		inputNotifModel := notif.Notification{
-			UserId:                  iduint,
-			NotificationTitle:       "Edit Profile",
-			NotificationDescription: "Anda Telah Mengubah Data Profile",
-			NotificationStatus:      0,
-			NotificationType:        0,
-		}
-
-		resultNotif := db.Table("notifications").Create(&inputNotifModel)
-		if resultNotif.Error != nil {
-			c.JSON(http.StatusBadRequest, EditProfileResponse{
-				Status:  400,
-				Message: result.Error.Error() + "Notif error",
-			})
-			return
-		}
-
-		editProfileResponse := EditProfileResponse{
-			Status:  http.StatusAccepted,
-			Message: "Edit profile success",
-		}
-
-		c.JSON(http.StatusOK, editProfileResponse)
-
-	} else {
-		c.JSON(http.StatusBadRequest, EditProfileResponse{
-			Status:  http.StatusBadRequest,
-			Message: "invalid token",
-		})
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		c.JSON(errorResp.Status, baseResponse)
 		return
 	}
+
+	result := db.Table("account_user_models").Where("id = ?", userData.ID).Update(editProfileReq)
+	if result.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Terjadi kesalahan"
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	respNotif := helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Edit Profile",
+		"Anda Telah Mengubah Data Profile",
+	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusAccepted
+	baseResponse.Message = "Edit Profile Successfully"
+	c.JSON(http.StatusOK, baseResponse)
+
 }

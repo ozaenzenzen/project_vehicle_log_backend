@@ -3,14 +3,16 @@ package models
 import "time"
 
 type Notification struct {
-	NotificationId uint `json:"notification_id" gorm:"primary_key"`
-	UserId         uint `gorm:"not null" json:"user_id" validate:"required"`
+	NotificationId uint   `json:"notification_id" gorm:"primary_key"`
+	UserId         uint   `json:"user_id" `
+	UserStamp      string `json:"user_stamp" `
 	// OrganizationId          uint      `gorm:"not null" json:"organization_id" validate:"required"`
 	// EventId                 uint      `gorm:"not null" json:"event_id" validate:"required"`
 	NotificationTitle       string    `gorm:"not null" json:"notification_title" validate:"required"`
 	NotificationDescription string    `gorm:"not null" json:"notification_description" validate:"required"`
 	NotificationStatus      uint      `gorm:"not null" json:"notification_status" validate:"required"`
 	NotificationType        uint      `gorm:"not null" json:"notification_type" validate:"required"`
+	NotificationStamp       string    `json:"notification_stamp"`
 	CreatedAt               time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt               time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

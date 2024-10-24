@@ -21,18 +21,25 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.POST("/account/signin", controllers.SignInAccount)
 	r.POST("/account/signup", controllers.SignUpAccount)
 	r.POST("/account/editprofile", controllers.EditProfile)
+	r.GET("/account/refreshtoken", controllers.RefreshToken)
 	// r.GET("/account/userdata/:id", controllers.GetUserData)
 	r.GET("/account/userdata", controllers.GetUserData)
+
 	r.GET("/vehicle/allvehicle", controllers.GetAllVehicleData)
+	r.POST("/vehicle/allvehicleV2", controllers.GetAllVehicleDataV2)
+	r.GET("/vehicle/allvehicleV3", controllers.GetAllVehicleDataV3)
 	r.POST("/vehicle/createvehicle", controllers.CreateVehicle)
 	r.POST("/vehicle/editvehicle", controllers.EditVehicle)
 	r.POST("/vehicle/createlogvehicle", controllers.CreateLogVehicle)
 	r.GET("/vehicle/getlogvehicle", controllers.GetLogVehicle)
+	r.POST("/vehicle/getlogvehicleV2", controllers.GetLogVehicleV2)
+	r.GET("/vehicle/getlistlogtype", controllers.GetListLogType)
 	r.PUT("/vehicle/editmeasurementlogvehicle", controllers.EditMeasurementLogVehicle)
 	// r.PUT("/vehicle/deletemeasurementlogvehicle", controllers.GetLogVehicle) //next update
 	// r.POST("/event/submitevent", controllers.SubmitEvent)
 	// r.GET("/event/getlistvolunteers/:id", controllers.GetListVolunteer) //event id
-	r.GET("/notifications/:id", controllers.GetNotificationByUserId) //user id
+
+	r.POST("/notifications/getnotification", controllers.GetNotification) //user id
 
 	r.NoRoute(func(c *gin.Context) {
 		// response := map[string]interface{}{

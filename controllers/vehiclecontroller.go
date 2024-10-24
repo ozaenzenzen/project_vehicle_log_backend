@@ -929,10 +929,37 @@ func GetLogVehicleV2(c *gin.Context) {
         	(SELECT AVG(DATEDIFF(current.checkpoint_date, previous.checkpoint_date))
 				FROM vehicle_measurement_log_models AS current
 				JOIN vehicle_measurement_log_models AS previous ON current.user_id = previous.user_id AND current.created_at > previous.created_at
-				WHERE current.user_id = ?) AS avg_service_freq
+				WHERE current.user_id = ?) AS avg_service_freq,
+			(SELECT GROUP_CONCAT(measurement_title ORDER BY freq DESC SEPARATOR ', ')
+				FROM (
+					SELECT measurement_title, COUNT(*) AS freq
+					FROM vehicle_measurement_log_models
+					WHERE user_id = ?
+					GROUP BY measurement_title
+					ORDER BY freq DESC
+					LIMIT 5
+				) AS freq_titles) AS most_frequent_titles,
+			(SELECT GROUP_CONCAT(CONCAT(measurement_title, ': ', total_expenses))
+				FROM (
+					SELECT measurement_title, SUM(CAST(amount_expenses AS DECIMAL(10,2))) AS total_expenses
+					FROM vehicle_measurement_log_models
+					WHERE user_id = ?
+					GROUP BY measurement_title
+				) AS breakdown) AS cost_breakdown
     	FROM vehicle_measurement_log_models 
     	WHERE user_id = ?
-	`, userData.ID, userData.ID).Scan(&resultDataAnalytics)
+	`, userData.ID, userData.ID, userData.ID, userData.ID).Scan(&resultDataAnalytics)
+
+	// (SELECT GROUP_CONCAT(measurement_title ORDER BY COUNT(*) DESC SEPARATOR ', ')
+	// 			FROM vehicle_measurement_log_models
+	// 			WHERE user_id = ?
+	// 			GROUP BY measurement_title
+	// 			ORDER BY COUNT(*) DESC
+	// 			LIMIT 5) AS most_frequent_titles
+	// (SELECT GROUP_CONCAT(CONCAT(measurement_title, ': ', SUM(CAST(amount_expenses AS DECIMAL(10,2)))))
+	// 			FROM vehicle_measurement_log_models
+	// 			WHERE user_id = ?
+	// 			GROUP BY measurement_title) AS cost_breakdown
 
 	// IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', m.measurement_title, '"')), ']'),'[]')
 	// GROUP_CONCAT(DISTINCT measurement_title) AS measurement_titles

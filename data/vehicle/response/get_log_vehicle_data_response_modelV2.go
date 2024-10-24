@@ -33,11 +33,13 @@ type DataGetLogVehicleV2 struct {
 }
 
 type DataAnalyticsVehicleV2 struct {
-	TotalExpenses     float64   `json:"total_expenses"`
-	LastCreatedAt     time.Time `json:"last_created_at"`
-	MeasurementTitles any       `json:"measurement_titles"`
+	TotalExpenses      float64   `json:"total_expenses"`
+	LastCreatedAt      time.Time `json:"last_created_at"`
+	AvgExpensesPerMeas string    `json:"avg_expenses_per_meas"`
+	AvgOdoChange       float64   `json:"avg_odo_change"`
+	AvgServiceFreq     float64   `json:"avg_service_freq"`
+	MostFrequentTitles string    `json:"most_frequent_titles"`
+	CostBreakdown      string    `json:"cost_breakdown"`
+	MeasurementTitles  any       `json:"measurement_titles"`
 	// MeasurementTitles []string  `json:"measurement_titles"`
-	AvgExpensesPerMeas string  `json:"avg_expenses_per_meas"`
-	AvgOdoChange       float64 `json:"avg_odo_change"`
-	AvgServiceFreq     float64 `json:"avg_service_freq"`
 }

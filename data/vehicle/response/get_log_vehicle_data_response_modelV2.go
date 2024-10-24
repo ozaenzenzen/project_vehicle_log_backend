@@ -9,12 +9,12 @@ type GetLogVehicleDataResponseModelV2 struct {
 }
 
 type GetLogVehicleDataModelV2 struct {
-	CurrentPage int                    `json:"current_page"`
-	NextPage    int                    `json:"next_page"`
-	TotalPages  int                    `json:"total_pages"`
-	TotalItems  int                    `json:"total_items"`
-	VehicleData DataAnalyticsVehicleV2 `json:"vehicle_data"`
-	Data        *[]DataGetLogVehicleV2 `json:"list_data"`
+	CurrentPage       int                    `json:"current_page"`
+	NextPage          int                    `json:"next_page"`
+	TotalPages        int                    `json:"total_pages"`
+	TotalItems        int                    `json:"total_items"`
+	CollectionLogData DataAnalyticsVehicleV2 `json:"collection_log_data"`
+	Data              *[]DataGetLogVehicleV2 `json:"list_data"`
 }
 
 type DataGetLogVehicleV2 struct {
@@ -37,4 +37,7 @@ type DataAnalyticsVehicleV2 struct {
 	LastCreatedAt     time.Time `json:"last_created_at"`
 	MeasurementTitles any       `json:"measurement_titles"`
 	// MeasurementTitles []string  `json:"measurement_titles"`
+	AvgExpensesPerMeas string  `json:"avg_expenses_per_meas"`
+	AvgOdoChange       float64 `json:"avg_odo_change"`
+	AvgServiceFreq     float64 `json:"avg_service_freq"`
 }

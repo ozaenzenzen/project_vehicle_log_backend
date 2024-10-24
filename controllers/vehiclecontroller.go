@@ -923,10 +923,16 @@ func GetLogVehicleV2(c *gin.Context) {
     	SELECT 
     	    SUM(CAST(amount_expenses AS DECIMAL(10,2))) AS total_expenses, 
         	MAX(created_at) AS last_created_at,
-        	IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', measurement_title, '"')), ']'),'[]') AS measurement_titles
+        	IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', measurement_title, '"')), ']'),'[]') AS measurement_titles,
+			AVG(CAST(amount_expenses AS DECIMAL(10,2))) AS avg_expenses_per_meas,
+        	AVG(CAST(estimate_odo_changing AS DECIMAL(10,2))) AS avg_odo_change,
+        	(SELECT AVG(DATEDIFF(current.checkpoint_date, previous.checkpoint_date))
+				FROM vehicle_measurement_log_models AS current
+				JOIN vehicle_measurement_log_models AS previous ON current.user_id = previous.user_id AND current.created_at > previous.created_at
+				WHERE current.user_id = ?) AS avg_service_freq
     	FROM vehicle_measurement_log_models 
     	WHERE user_id = ?
-	`, userData.ID).Scan(&resultDataAnalytics)
+	`, userData.ID, userData.ID).Scan(&resultDataAnalytics)
 
 	// IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', m.measurement_title, '"')), ']'),'[]')
 	// GROUP_CONCAT(DISTINCT measurement_title) AS measurement_titles
@@ -970,7 +976,7 @@ func GetLogVehicleV2(c *gin.Context) {
 		return
 	}
 
-	resultData.VehicleData = resultDataAnalytics
+	resultData.CollectionLogData = resultDataAnalytics
 
 	baseResponse.Status = 200
 	baseResponse.Message = "get log vehicle data success"

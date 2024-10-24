@@ -13,6 +13,7 @@ type GetLogVehicleDataModelV2 struct {
 	NextPage    int                    `json:"next_page"`
 	TotalPages  int                    `json:"total_pages"`
 	TotalItems  int                    `json:"total_items"`
+	VehicleData DataAnalyticsVehicleV2 `json:"vehicle_data"`
 	Data        *[]DataGetLogVehicleV2 `json:"list_data"`
 }
 
@@ -29,4 +30,11 @@ type DataGetLogVehicleV2 struct {
 	Notes               string    `json:"notes"`
 	CreatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+type DataAnalyticsVehicleV2 struct {
+	TotalExpenses     float64   `json:"total_expenses"`
+	LastCreatedAt     time.Time `json:"last_created_at"`
+	MeasurementTitles any       `json:"measurement_titles"`
+	// MeasurementTitles []string  `json:"measurement_titles"`
 }

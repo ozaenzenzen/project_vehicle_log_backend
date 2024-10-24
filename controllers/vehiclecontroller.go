@@ -918,6 +918,41 @@ func GetLogVehicleV2(c *gin.Context) {
 		return
 	}
 
+	var resultDataAnalytics resp.DataAnalyticsVehicleV2
+	db.Raw(`
+    	SELECT 
+    	    SUM(CAST(amount_expenses AS DECIMAL(10,2))) AS total_expenses, 
+        	MAX(created_at) AS last_created_at,
+        	IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', measurement_title, '"')), ']'),'[]') AS measurement_titles
+    	FROM vehicle_measurement_log_models 
+    	WHERE user_id = ?
+	`, userData.ID).Scan(&resultDataAnalytics)
+
+	// IFNULL(CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('"', m.measurement_title, '"')), ']'),'[]')
+	// GROUP_CONCAT(DISTINCT measurement_title) AS measurement_titles
+
+	// Unmarshal MeasurementTitle JSON into a slice
+	var value2 any = resultDataAnalytics.MeasurementTitles
+	bytes2, errConvert := convertToBytes(value2)
+	if errConvert != nil {
+		fmt.Println("Error:", errConvert)
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errConvert.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	var titles []string
+	if errUnmarshal := json.Unmarshal([]byte(bytes2), &titles); errUnmarshal != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errUnmarshal.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+	resultDataAnalytics.MeasurementTitles = titles
+
 	resultData, errPagination := GetLogVehiclePagination(
 		db,
 		reqData.CurrentPage,
@@ -934,6 +969,8 @@ func GetLogVehicleV2(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
+
+	resultData.VehicleData = resultDataAnalytics
 
 	baseResponse.Status = 200
 	baseResponse.Message = "get log vehicle data success"

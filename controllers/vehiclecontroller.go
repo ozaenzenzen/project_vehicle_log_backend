@@ -939,6 +939,15 @@ func GetLogVehicleV2(c *gin.Context) {
 					ORDER BY freq DESC
 					LIMIT 5
 				) AS freq_titles) AS most_frequent_titles,
+			(SELECT GROUP_CONCAT(measurement_title ORDER BY freq DESC SEPARATOR ', ')
+				FROM (
+					SELECT measurement_title, COUNT(measurement_title) AS freq
+					FROM vehicle_measurement_log_models
+					WHERE user_id = ?
+					GROUP BY measurement_title
+					ORDER BY freq DESC
+					LIMIT 5
+				) AS freq_titles) AS count_frequent_titles,
 			(SELECT GROUP_CONCAT(CONCAT(measurement_title, ': ', total_expenses))
 				FROM (
 					SELECT measurement_title, SUM(CAST(amount_expenses AS DECIMAL(10,2))) AS total_expenses
@@ -948,7 +957,7 @@ func GetLogVehicleV2(c *gin.Context) {
 				) AS breakdown) AS cost_breakdown
     	FROM vehicle_measurement_log_models 
     	WHERE user_id = ?
-	`, userData.ID, userData.ID, userData.ID, userData.ID).Scan(&resultDataAnalytics)
+	`, userData.ID, userData.ID, userData.ID, userData.ID, userData.ID).Scan(&resultDataAnalytics)
 
 	// (SELECT GROUP_CONCAT(measurement_title ORDER BY COUNT(*) DESC SEPARATOR ', ')
 	// 			FROM vehicle_measurement_log_models
@@ -984,6 +993,35 @@ func GetLogVehicleV2(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
+
+	//------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------
+	var countFrequentTitleModel []resp.CountFrequentTitleModel
+
+	db.Raw(`
+    SELECT measurement_title AS title, COUNT(measurement_title) AS total
+    FROM vehicle_measurement_log_models
+    WHERE user_id = ?
+    GROUP BY measurement_title
+	`, userData.ID).Scan(&countFrequentTitleModel)
+
+	breakdownMap1 := make(map[string]float64)
+	for _, item := range countFrequentTitleModel {
+		breakdownMap1[item.Title] = item.Total
+	}
+
+	countFrequentJSON, err := json.Marshal(breakdownMap1)
+	if err != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Error Sini2"
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
+	}
+
+	resultDataAnalytics.CountFrequentTitles = string(countFrequentJSON)
+	//------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------
+
+	//------ COST BREAKDOWN ------ COST BREAKDOWN ------ COST BREAKDOWN ------ COST BREAKDOWN ------
 	var costBreakdown []resp.CostBreakdownModel
 
 	db.Raw(`
@@ -1002,12 +1040,17 @@ func GetLogVehicleV2(c *gin.Context) {
 	// Convert the map to a JSON string
 	costBreakdownJSON, err := json.Marshal(breakdownMap)
 	if err != nil {
-		// Handle error if needed
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Error Sini2"
+		baseResponse.Data = nil
+		c.JSON(http.StatusInternalServerError, baseResponse)
+		return
 	}
 
 	// Set this to your result struct (assuming you've updated the Result struct to hold a map)
 	// resultDataAnalytics.CostBreakdown = breakdownMap
 	resultDataAnalytics.CostBreakdown = string(costBreakdownJSON)
+	//------ COST BREAKDOWN ------ COST BREAKDOWN ------ COST BREAKDOWN ------ COST BREAKDOWN ------
 
 	resultDataAnalytics.MeasurementTitles = titles
 

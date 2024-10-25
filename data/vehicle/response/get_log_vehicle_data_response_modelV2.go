@@ -33,19 +33,25 @@ type DataGetLogVehicleV2 struct {
 }
 
 type DataAnalyticsVehicleV2 struct {
-	TotalExpenses      float64   `json:"total_expenses"`
-	LastCreatedAt      time.Time `json:"last_created_at"`
-	AvgExpensesPerMeas string    `json:"avg_expenses_per_meas"`
-	AvgOdoChange       float64   `json:"avg_odo_change"`
-	AvgServiceFreq     float64   `json:"avg_service_freq"`
-	MostFrequentTitles string    `json:"most_frequent_titles"`
-	CostBreakdown      any       `json:"cost_breakdown"`
+	TotalExpenses       float64   `json:"total_expenses"`
+	LastCreatedAt       time.Time `json:"last_created_at"`
+	AvgExpensesPerMeas  string    `json:"avg_expenses_per_meas"`
+	AvgOdoChange        float64   `json:"avg_odo_change"`
+	AvgServiceFreq      float64   `json:"avg_service_freq"`
+	MostFrequentTitles  string    `json:"most_frequent_titles"`
+	CountFrequentTitles any       `json:"count_frequent_titles"`
+	CostBreakdown       any       `json:"cost_breakdown"`
 	// CostBreakdown      string    `json:"cost_breakdown"`
 	MeasurementTitles any `json:"measurement_titles"`
 	// MeasurementTitles []string  `json:"measurement_titles"`
 }
 
 type CostBreakdownModel struct {
+	Title string  `json:"title"`
+	Total float64 `json:"total"`
+}
+
+type CountFrequentTitleModel struct {
 	Title string  `json:"title"`
 	Total float64 `json:"total"`
 }

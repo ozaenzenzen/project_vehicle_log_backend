@@ -6,13 +6,14 @@ import (
 	"log"
 	"net/http"
 
+	baseResp "project_vehicle_log_backend/data"
 	req "project_vehicle_log_backend/data/vehicle/request"
 	resp "project_vehicle_log_backend/data/vehicle/response"
 	helper "project_vehicle_log_backend/helper"
+	models "project_vehicle_log_backend/models/account"
 	vehicle "project_vehicle_log_backend/models/vehicle"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator"
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 )
@@ -274,27 +275,9 @@ func GetAllVehicleDataV3(c *gin.Context) {
 func GetAllVehicleDataV2(c *gin.Context) {
 	baseResponse := resp.GetAllVehicleDataResponseModelV2{}
 
-	var reqData req.GetAllVehicleDataRequestModelV2
-	if err := c.ShouldBindJSON(&reqData); err != nil {
-		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
-			Status:  http.StatusBadRequest,
-			Message: "Data tidak lengkap1",
-			Data:    nil,
-		})
-		return
-	}
+	var reqBody req.GetAllVehicleDataRequestModelV2
 
-	validate := validator.New()
-	if err := validate.Struct(reqData); err != nil {
-		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
-			Status:  http.StatusBadRequest,
-			Message: "Data tidak lengkap2",
-			Data:    nil,
-		})
-		return
-	}
-
-	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	getAllVehicleDataRequest, db, _, userData, errorResp := helper.CustomValidatorWithRequestBody(c, reqBody)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -307,9 +290,9 @@ func GetAllVehicleDataV2(c *gin.Context) {
 	// resultData, errPagination := GetAllVehiclePaginationUsingRaw(
 	resultData, errPagination := GetAllVehiclePaginationUsingRawV2(
 		db,
-		reqData.CurrentPage,
-		reqData.Limit,
-		reqData.SortOrder,
+		getAllVehicleDataRequest.CurrentPage,
+		getAllVehicleDataRequest.Limit,
+		getAllVehicleDataRequest.SortOrder,
 		&userData.UserStamp,
 	)
 	if errPagination != nil {
@@ -877,39 +860,18 @@ func GetListLogType(c *gin.Context) {
 		)
 		return
 	}
-	c.JSON(http.StatusOK,
-		resp.GetListLogTypeResponseModel{
-			Status:  200,
-			Message: "Get log type success",
-			Data:    &measurementType,
-		},
-	)
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Get log type success"
+	baseResponse.Data = &measurementType
+	c.JSON(http.StatusOK, baseResponse)
 }
 
 func GetLogVehicleV2(c *gin.Context) {
 	baseResponse := resp.GetLogVehicleDataResponseModelV2{}
 
-	var reqData req.GetLogVehicleDataRequestModelV2
-	if err := c.ShouldBindJSON(&reqData); err != nil {
-		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
-			Status:  http.StatusBadRequest,
-			Message: "Data tidak lengkap1",
-			Data:    nil,
-		})
-		return
-	}
+	var reqBody req.GetLogVehicleDataRequestModelV2
 
-	validate := validator.New()
-	if err := validate.Struct(reqData); err != nil {
-		c.JSON(http.StatusBadRequest, resp.GetAllVehicleDataResponseModelV2{
-			Status:  http.StatusBadRequest,
-			Message: "Data tidak lengkap2",
-			Data:    nil,
-		})
-		return
-	}
-
-	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	getLogVehicleDataRequest, db, _, userData, errorResp := helper.CustomValidatorWithRequestBody(c, reqBody)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -918,6 +880,48 @@ func GetLogVehicleV2(c *gin.Context) {
 		return
 	}
 
+	resultDataAnalytics, errorRespCollection := GetLogVehicleCollectionDataProcess(c, db, *userData)
+	if errorRespCollection != nil {
+		baseResponse.Status = errorRespCollection.Status
+		baseResponse.Message = errorRespCollection.Message
+		baseResponse.Data = nil
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	resultData, errPagination := GetLogVehiclePagination(
+		db,
+		getLogVehicleDataRequest.CurrentPage,
+		getLogVehicleDataRequest.Limit,
+		getLogVehicleDataRequest.VehicleID,
+		getLogVehicleDataRequest.MeasurementTitle,
+		getLogVehicleDataRequest.SortOrder,
+		&userData.UserStamp,
+	)
+	if errPagination != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errPagination.Error()
+		baseResponse.Data = nil
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	resultData.CollectionLogData = *resultDataAnalytics
+
+	baseResponse.Status = 200
+	baseResponse.Message = "get log vehicle data success"
+	baseResponse.Data = resultData
+	c.JSON(http.StatusOK, baseResponse)
+}
+
+func GetLogVehicleCollectionDataProcess(
+	c *gin.Context,
+	db *gorm.DB,
+	userData models.AccountUserModel,
+) (
+	*resp.DataAnalyticsVehicleV2,
+	*baseResp.BaseResponseModel,
+) {
 	var resultDataAnalytics resp.DataAnalyticsVehicleV2
 	db.Raw(`
     	SELECT 
@@ -978,20 +982,20 @@ func GetLogVehicleV2(c *gin.Context) {
 	bytes2, errConvert := convertToBytes(value2)
 	if errConvert != nil {
 		fmt.Println("Error:", errConvert)
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = errConvert.Error()
-		baseResponse.Data = nil
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
+		return nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: errConvert.Error(),
+			Data:    nil,
+		}
 	}
 
 	var titles []string
 	if errUnmarshal := json.Unmarshal([]byte(bytes2), &titles); errUnmarshal != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = errUnmarshal.Error()
-		baseResponse.Data = nil
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
+		return nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusBadRequest,
+			Message: errUnmarshal.Error(),
+			Data:    nil,
+		}
 	}
 
 	//------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------ COUNT FREQUENT TITLE ------
@@ -1011,11 +1015,11 @@ func GetLogVehicleV2(c *gin.Context) {
 
 	countFrequentJSON, err := json.Marshal(breakdownMap1)
 	if err != nil {
-		baseResponse.Status = http.StatusInternalServerError
-		baseResponse.Message = "Error Sini2"
-		baseResponse.Data = nil
-		c.JSON(http.StatusInternalServerError, baseResponse)
-		return
+		return nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusInternalServerError,
+			Message: "Error Marshal",
+			Data:    nil,
+		}
 	}
 
 	resultDataAnalytics.CountFrequentTitles = string(countFrequentJSON)
@@ -1040,11 +1044,11 @@ func GetLogVehicleV2(c *gin.Context) {
 	// Convert the map to a JSON string
 	costBreakdownJSON, err := json.Marshal(breakdownMap)
 	if err != nil {
-		baseResponse.Status = http.StatusInternalServerError
-		baseResponse.Message = "Error Sini2"
-		baseResponse.Data = nil
-		c.JSON(http.StatusInternalServerError, baseResponse)
-		return
+		return nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusInternalServerError,
+			Message: "Error Marshal2",
+			Data:    nil,
+		}
 	}
 
 	// Set this to your result struct (assuming you've updated the Result struct to hold a map)
@@ -1053,30 +1057,7 @@ func GetLogVehicleV2(c *gin.Context) {
 	//------ COST BREAKDOWN ------ COST BREAKDOWN ------ COST BREAKDOWN ------ COST BREAKDOWN ------
 
 	resultDataAnalytics.MeasurementTitles = titles
-
-	resultData, errPagination := GetLogVehiclePagination(
-		db,
-		reqData.CurrentPage,
-		reqData.Limit,
-		reqData.VehicleID,
-		reqData.MeasurementTitle,
-		reqData.SortOrder,
-		&userData.UserStamp,
-	)
-	if errPagination != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = errPagination.Error()
-		baseResponse.Data = nil
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
-	}
-
-	resultData.CollectionLogData = resultDataAnalytics
-
-	baseResponse.Status = 200
-	baseResponse.Message = "get log vehicle data success"
-	baseResponse.Data = resultData
-	c.JSON(http.StatusOK, baseResponse)
+	return &resultDataAnalytics, nil
 }
 
 func GetLogVehiclePagination(

@@ -219,24 +219,6 @@ func CustomValidatorWithRefreshToken(c *gin.Context, isRefreshToken bool) (*gorm
 }
 
 func CustomValidatorAC(c *gin.Context) (*gorm.DB, *string, *account.AccountUserModel, *baseResp.BaseResponseModel) {
-	// header_platformkey := c.Request.Header.Get("platformkey")
-	// if header_platformkey == "" {
-	// 	return nil, nil, nil, &baseResp.BaseResponseModel{
-	// 		Status:  http.StatusBadRequest,
-	// 		Message: "invalid credential1",
-	// 		Data:    nil,
-	// 	}
-	// }
-
-	// isValidPlatformKey, errVerifyPlatformKey := VerifyPlatformToken(header_platformkey)
-	// if errVerifyPlatformKey != nil || !isValidPlatformKey {
-	// 	return nil, nil, nil, nil, &baseResp.BaseResponseModel{
-	// 		Status:  http.StatusBadRequest,
-	// 		Message: "invalid credential2",
-	// 		Data:    nil,
-	// 	}
-	// }
-
 	header_token := c.Request.Header.Get("token")
 	if header_token == "" {
 		return nil, nil, nil, &baseResp.BaseResponseModel{
@@ -254,15 +236,6 @@ func CustomValidatorAC(c *gin.Context) (*gorm.DB, *string, *account.AccountUserM
 			Data:    nil,
 		}
 	}
-
-	// platformName, errorResp := GetPlatformNameFromHeader(c, header_platformkey)
-	// if errorResp != nil {
-	// 	return nil, nil, nil, nil, &baseResp.BaseResponseModel{
-	// 		Status:  http.StatusBadRequest,
-	// 		Message: errorResp.Message,
-	// 		Data:    nil,
-	// 	}
-	// }
 
 	tokenRaw, err := DecodeUserToken(header_token)
 	if err != nil {
@@ -294,19 +267,6 @@ func CustomValidatorAC(c *gin.Context) (*gorm.DB, *string, *account.AccountUserM
 		}
 	}
 
-	//--------check platform--------check platform--------check platform--------
-	// var dataPlatform platform.PlatformModel
-	// if err := db.Table("platform_models").
-	// 	Where("platform_name = ?", platformName).
-	// 	First(&dataPlatform).Error; err != nil {
-	// 	return nil, nil, nil, nil, &baseResp.BaseResponseModel{
-	// 		Status:  http.StatusBadRequest,
-	// 		Message: "User Data Not Found",
-	// 		Data:    nil,
-	// 	}
-	// }
-
-	//--------check id--------check id--------check id--------
 	var dataAccount account.AccountUserModel
 	if err := db.Table("account_user_models").
 		Where("user_stamp = ?", userStamp).

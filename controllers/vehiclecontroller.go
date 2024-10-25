@@ -984,6 +984,31 @@ func GetLogVehicleV2(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
+	var costBreakdown []resp.CostBreakdownModel
+
+	db.Raw(`
+    SELECT measurement_title AS title, SUM(CAST(amount_expenses AS DECIMAL(10,2))) AS total
+    FROM vehicle_measurement_log_models
+    WHERE user_id = ?
+    GROUP BY measurement_title
+	`, userData.ID).Scan(&costBreakdown)
+
+	// Convert to a map if needed
+	breakdownMap := make(map[string]float64)
+	for _, item := range costBreakdown {
+		breakdownMap[item.Title] = item.Total
+	}
+
+	// Convert the map to a JSON string
+	costBreakdownJSON, err := json.Marshal(breakdownMap)
+	if err != nil {
+		// Handle error if needed
+	}
+
+	// Set this to your result struct (assuming you've updated the Result struct to hold a map)
+	// resultDataAnalytics.CostBreakdown = breakdownMap
+	resultDataAnalytics.CostBreakdown = string(costBreakdownJSON)
+
 	resultDataAnalytics.MeasurementTitles = titles
 
 	resultData, errPagination := GetLogVehiclePagination(

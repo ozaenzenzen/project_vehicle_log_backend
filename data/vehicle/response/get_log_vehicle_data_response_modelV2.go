@@ -39,7 +39,13 @@ type DataAnalyticsVehicleV2 struct {
 	AvgOdoChange       float64   `json:"avg_odo_change"`
 	AvgServiceFreq     float64   `json:"avg_service_freq"`
 	MostFrequentTitles string    `json:"most_frequent_titles"`
-	CostBreakdown      string    `json:"cost_breakdown"`
-	MeasurementTitles  any       `json:"measurement_titles"`
+	CostBreakdown      any       `json:"cost_breakdown"`
+	// CostBreakdown      string    `json:"cost_breakdown"`
+	MeasurementTitles any `json:"measurement_titles"`
 	// MeasurementTitles []string  `json:"measurement_titles"`
+}
+
+type CostBreakdownModel struct {
+	Title string  `json:"title"`
+	Total float64 `json:"total"`
 }

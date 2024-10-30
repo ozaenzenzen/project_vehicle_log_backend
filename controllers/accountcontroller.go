@@ -27,7 +27,8 @@ func RefreshToken(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(*userStamp) // using stamp
+	accessToken, accessTokenExpiryTime, refreshToken, refreshTokenExpiryTime, errGenerateJWT := helper.GenerateUserTokenV3(*userStamp) // using stamp
+	// accessToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(*userStamp) // using stamp
 	if errGenerateJWT != nil {
 		baseResponse.Status = http.StatusInternalServerError
 		baseResponse.Message = "Failed to generate token"
@@ -50,9 +51,11 @@ func RefreshToken(c *gin.Context) {
 
 	baseResponse.Status = http.StatusOK
 	baseResponse.Message = "Refresh Token Success"
-	baseResponse.Data = &resp.RefreshTokenDataModel{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+	baseResponse.Data = &resp.RefreshTokenDataModelV2{
+		AccessToken:            accessToken,
+		AccessTokenExpiryTime:  *accessTokenExpiryTime,
+		RefreshToken:           refreshToken,
+		RefreshTokenExpiryTime: *refreshTokenExpiryTime,
 	}
 	c.JSON(http.StatusOK, baseResponse)
 }
@@ -187,7 +190,8 @@ func SignInAccount(c *gin.Context) {
 		return
 	}
 
-	userToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(tableAccount.UserStamp) // using stamp
+	accessToken, accessTokenExpiryTime, refreshToken, refreshTokenExpiryTime, errGenerateJWT := helper.GenerateUserTokenV3(tableAccount.UserStamp) // using stamp
+	// userToken, refreshToken, errGenerateJWT := helper.GenerateUserTokenV2(tableAccount.UserStamp) // using stamp
 	if errGenerateJWT != nil {
 		baseResponse.Status = http.StatusInternalServerError
 		baseResponse.Message = "Failed to generate token"
@@ -210,14 +214,16 @@ func SignInAccount(c *gin.Context) {
 
 	baseResponse.Status = http.StatusOK
 	baseResponse.Message = "Account SignIn Successfully"
-	baseResponse.Data = &resp.AccountSignInDataModel{
-		ID:           tableAccount.ID,
-		Name:         tableAccount.Name,
-		UserStamp:    tableAccount.UserStamp,
-		Email:        signInReq.Email,
-		Phone:        tableAccount.Phone,
-		Token:        userToken,
-		RefreshToken: refreshToken,
+	baseResponse.Data = &resp.AccountSignInDataModelV2{
+		ID:                     tableAccount.ID,
+		Name:                   tableAccount.Name,
+		UserStamp:              tableAccount.UserStamp,
+		Email:                  signInReq.Email,
+		Phone:                  tableAccount.Phone,
+		AccessToken:            accessToken,
+		AccessTokenExpiryTime:  *accessTokenExpiryTime,
+		RefreshToken:           refreshToken,
+		RefreshTokenExpiryTime: *refreshTokenExpiryTime,
 	}
 
 	c.JSON(http.StatusOK, baseResponse)

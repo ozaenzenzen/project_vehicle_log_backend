@@ -1,0 +1,26 @@
+SELECT
+				v.id,
+				v.user_id,
+				v.user_stamp,
+				v.vehicle_name,
+				v.vehicle_image,
+				v.year,
+				v.engine_capacity,
+				v.tank_capacity,
+				v.color,
+				v.machine_number,
+				v.chassis_number,
+				IFNULL(GROUP_CONCAT(m.measurement_title SEPARATOR ', '), '') AS measurement_title
+			FROM vehicle_models v
+			LEFT JOIN vehicle_measurement_log_models m ON m.vehicle_id = v.id
+			GROUP BY v.id
+			ORDER BY v.created_at DESC
+			LIMIT 30 OFFSET 1
+
+
+(
+					SELECT 
+						IFNULL(JSON_ARRAYAGG(m.measurement_title), '[]') 
+					FROM vehicle_measurement_log_models m 
+					WHERE m.vehicle_id = v.id
+				) AS measurement_title

@@ -79,8 +79,8 @@ func CustomValidatorWithRefreshToken(c *gin.Context, isRefreshToken bool) (*gorm
 		isValidToken, errVerifyToken := VerifyUserToken(header_token)
 		if errVerifyToken != nil || !isValidToken {
 			return nil, nil, nil, &baseResp.BaseResponseModel{
-				Status:  http.StatusBadRequest,
-				Message: "invalid credential4",
+				Status:  http.StatusUnauthorized,
+				Message: "expired",
 				Data:    nil,
 			}
 		}
@@ -97,8 +97,8 @@ func CustomValidatorWithRefreshToken(c *gin.Context, isRefreshToken bool) (*gorm
 		isValidToken, errVerifyToken := VerifyUserToken(header_refreshtoken)
 		if errVerifyToken != nil || !isValidToken {
 			return nil, nil, nil, &baseResp.BaseResponseModel{
-				Status:  http.StatusBadRequest,
-				Message: "invalid credential6",
+				Status:  http.StatusUnauthorized,
+				Message: "expired",
 				Data:    nil,
 			}
 		}
@@ -208,7 +208,7 @@ func CustomValidatorWithRefreshToken(c *gin.Context, isRefreshToken bool) (*gorm
 			Where("refresh_token = ?", header_refreshtoken).
 			First(&dataAccount).Error; errDataAccount != nil {
 			return nil, nil, nil, &baseResp.BaseResponseModel{
-				Status:  http.StatusBadRequest,
+				Status:  http.StatusUnauthorized,
 				Message: "Expired",
 				Data:    nil,
 			}
@@ -231,8 +231,8 @@ func CustomValidatorAC(c *gin.Context) (*gorm.DB, *string, *account.AccountUserM
 	isValidToken, errVerifyToken := VerifyUserToken(header_token)
 	if errVerifyToken != nil || !isValidToken {
 		return nil, nil, nil, &baseResp.BaseResponseModel{
-			Status:  http.StatusBadRequest,
-			Message: "invalid credential4",
+			Status:  http.StatusUnauthorized,
+			Message: "expired",
 			Data:    nil,
 		}
 	}
@@ -311,8 +311,8 @@ func CustomValidatorWithRequestBody[T any](c *gin.Context, requestModel T) (*T, 
 	isValidToken, errVerifyToken := VerifyUserToken(header_token)
 	if errVerifyToken != nil || !isValidToken {
 		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
-			Status:  http.StatusBadRequest,
-			Message: "invalid credential4",
+			Status:  http.StatusUnauthorized,
+			Message: "expired",
 			Data:    nil,
 		}
 	}

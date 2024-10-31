@@ -11,7 +11,9 @@ var key1 string = "ozaenzenzen"
 // var key_platform1 string = "ozaenzenzen_plat"
 
 func GenerateUserTokenV3(userstamp string) (string, *time.Time, string, *time.Time, error) {
-	expAccessToken := time.Now().Add(time.Minute * 3)
+	expAccessToken := time.Now().Add(time.Hour * 24)
+	// expAccessToken := time.Now().Add(time.Minute * 1)
+	// expAccessToken := time.Now().Add(time.Second * 30)
 	expRefreshToken := time.Now().Add(time.Hour * 168 * 2)
 	//Access Token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

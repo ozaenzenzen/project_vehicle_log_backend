@@ -6,22 +6,21 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-var key1 string = "ozaenzenzen"
+// var key1 string = "ozaenzenzen"
 
 // var key_platform1 string = "ozaenzenzen_plat"
 
 func GenerateUserTokenV3(userstamp string) (string, *time.Time, string, *time.Time, error) {
-	expAccessToken := time.Now().Add(time.Minute * 3)
+	expAccessToken := time.Now().Add(time.Second * 30)
 	expRefreshToken := time.Now().Add(time.Hour * 168 * 2)
 	//Access Token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_stamp": userstamp,
-		"exp":        expAccessToken.Unix(), // Token expires in 168 hour or 1 week
-		// "exp":        time.Now().Add(time.Minute * 3).Unix(), // Token expires in 168 hour or 1 week
-		// "exp":        time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
+		"exp":        expAccessToken.Unix(),
+		"type":       "access",
 	})
 
-	accessTokenString, errSignAccessToken := accessToken.SignedString([]byte(key1))
+	accessTokenString, errSignAccessToken := accessToken.SignedString([]byte(key))
 	if errSignAccessToken != nil {
 		return "", nil, "", nil, errSignAccessToken
 	}
@@ -29,11 +28,11 @@ func GenerateUserTokenV3(userstamp string) (string, *time.Time, string, *time.Ti
 	//Refresh Token
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_stamp": userstamp,
-		"exp":        expRefreshToken.Unix(), // Token expires in 168 * 4 hour or 2 weeks
-		// "exp":        time.Now().Add(time.Hour * 168 * 2).Unix(), // Token expires in 168 * 4 hour or 2 weeks
+		"exp":        expRefreshToken.Unix(),
+		"type":       "refresh",
 	})
 
-	refreshTokenString, errSignRefreshToken := refreshToken.SignedString([]byte(key1))
+	refreshTokenString, errSignRefreshToken := refreshToken.SignedString([]byte(key_refresh))
 	if errSignRefreshToken != nil {
 		return "", nil, "", nil, errSignRefreshToken
 	}
@@ -49,7 +48,7 @@ func GenerateUserTokenV2(userstamp string) (string, string, error) {
 		// "exp":        time.Now().Add(time.Hour * 168).Unix(), // Token expires in 168 hour or 1 week
 	})
 
-	accessTokenString, err := accessToken.SignedString([]byte(key1))
+	accessTokenString, err := accessToken.SignedString([]byte(key))
 	if err != nil {
 		return "", "", err
 	}
@@ -60,7 +59,7 @@ func GenerateUserTokenV2(userstamp string) (string, string, error) {
 		"exp":        time.Now().Add(time.Hour * 168 * 2).Unix(), // Token expires in 168 * 4 hour or 2 weeks
 	})
 
-	refreshTokenString, err := refreshToken.SignedString([]byte(key1))
+	refreshTokenString, err := refreshToken.SignedString([]byte(key_refresh))
 	if err != nil {
 		return "", "", err
 	}

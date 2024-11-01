@@ -11,6 +11,7 @@ import (
 )
 
 var key string = "ozaenzenzen"
+var key_refresh string = "ozaenzenzen_refreshx"
 
 func GenerateJWTToken(uid string, email string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -127,6 +128,22 @@ func GetDataTokenJWT(headertoken string, isEmail bool) string {
 	}
 }
 
+// DecodeJWT decodes a JWT string without verifying the signature
+func DecodeUserTokenWithoutSignature(tokenStr string) (jwt.MapClaims, error) {
+	// Parse the token without verifying
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenStr, jwt.MapClaims{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract claims as a map
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("unable to extract claims")
+}
+
 func DecodeUserToken(tokenString string) (jwt.MapClaims, error) {
 	// return token.Raw, err
 	hmacSecret := []byte(key)
@@ -160,4 +177,44 @@ func VerifyUserToken(tokenString string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func DecodeRefreshToken(tokenString string) (jwt.MapClaims, error) {
+	// return token.Raw, err
+	hmacSecret := []byte(key_refresh)
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return hmacSecret, nil
+	})
+	if err != nil {
+		return nil, nil
+	}
+	return token.Claims.(jwt.MapClaims), err
+}
+
+func VerifyRefreshToken(tokenString string) (bool, string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify the signing algorithm is HMAC with SHA-256
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			// fmt.Println("Error sini0: ")
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Provide the secret key used for signing the token
+		refreshResult := []byte(key_refresh)
+		return refreshResult, nil
+	})
+
+	if err != nil {
+		// fmt.Println("Error sini1: ", err)
+		return false, "Invalid Signature", err
+	}
+
+	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// fmt.Println("Success: ")
+		return true, "Success", nil
+	}
+
+	// fmt.Println("Error sini3: ", err)
+	return false, "Other Exception", nil
 }

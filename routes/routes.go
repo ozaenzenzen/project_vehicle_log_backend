@@ -18,6 +18,8 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.Use(func(c *gin.Context) {
 		c.Set("db", db)
 	})
+	r.POST("/device/checkdevice", controllers.CheckDevice)
+
 	r.POST("/account/signin", controllers.SignInAccount)
 	r.POST("/account/signup", controllers.SignUpAccount)
 	r.POST("/account/editprofile", controllers.EditProfile)

@@ -3,6 +3,7 @@ package main
 import (
 	setup "project_vehicle_log_backend/database"
 	account "project_vehicle_log_backend/models/account"
+	device "project_vehicle_log_backend/models/device"
 	notif "project_vehicle_log_backend/models/notification"
 	vehicle "project_vehicle_log_backend/models/vehicle"
 	routes "project_vehicle_log_backend/routes"
@@ -19,6 +20,7 @@ func main() {
 		&vehicle.VehicleModel{},
 		&vehicle.VehicleMeasurementLogModel{},
 		&notif.Notification{},
+		&device.DeviceModel{},
 	)
 
 	r := routes.SetupRoutes(db)

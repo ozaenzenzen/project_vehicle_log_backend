@@ -1240,7 +1240,7 @@ func EditMeasurementLogVehicle(c *gin.Context) {
 	if respNotif != nil {
 		baseResponse.Status = respNotif.Status
 		baseResponse.Message = respNotif.Message
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 

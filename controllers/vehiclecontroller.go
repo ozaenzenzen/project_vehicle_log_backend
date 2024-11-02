@@ -76,7 +76,7 @@ func CreateVehicle(c *gin.Context) {
 	if respNotif != nil {
 		baseResponse.Status = respNotif.Status
 		baseResponse.Message = respNotif.Message
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
@@ -159,7 +159,7 @@ func EditVehicle(c *gin.Context) {
 	if respNotif != nil {
 		baseResponse.Status = respNotif.Status
 		baseResponse.Message = respNotif.Message
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
@@ -787,7 +787,7 @@ func CreateLogVehicle(c *gin.Context) {
 	if respNotif != nil {
 		baseResponse.Status = respNotif.Status
 		baseResponse.Message = respNotif.Message
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
@@ -885,7 +885,7 @@ func GetLogVehicleV2(c *gin.Context) {
 		baseResponse.Status = errorRespCollection.Status
 		baseResponse.Message = errorRespCollection.Message
 		baseResponse.Data = nil
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 

@@ -276,7 +276,7 @@ func EditProfile(c *gin.Context) {
 	if result.Error != nil {
 		baseResponse.Status = http.StatusInternalServerError
 		baseResponse.Message = "Terjadi kesalahan"
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
@@ -290,7 +290,7 @@ func EditProfile(c *gin.Context) {
 	if respNotif != nil {
 		baseResponse.Status = respNotif.Status
 		baseResponse.Message = respNotif.Message
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 

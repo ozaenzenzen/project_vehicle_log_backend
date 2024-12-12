@@ -20,6 +20,9 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	})
 	r.POST("/device/checkdevice", controllers.CheckDevice)
 
+	r.POST("/otp/validation", controllers.OTPValidation)
+	r.POST("/otp/resend", controllers.ResendOTP)
+
 	r.POST("/account/signin", controllers.SignInAccount)
 	r.POST("/account/signup", controllers.SignUpAccount)
 	r.POST("/account/editprofile", controllers.EditProfile)

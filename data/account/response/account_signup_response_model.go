@@ -7,9 +7,11 @@ type AccountSignUpResponseModel struct {
 }
 
 type AccountSignUpDataModel struct {
-	UserId    uint   `json:"id"`
-	UserStamp string `json:"user_stamp"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	Phone     string `json:"phone"`
+	UserId       uint   `json:"id"`
+	UserStamp    string `json:"user_stamp"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Phone        string `json:"phone"`
+	OTPKey       string `json:"otp_key"`
+	ResendOTPKey string `json:"resend_otp_key"`
 }

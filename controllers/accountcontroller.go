@@ -9,6 +9,8 @@ import (
 	// account "project_vehicle_log_backend/models/account"
 	account "project_vehicle_log_backend/models/account"
 
+	otpService "project_vehicle_log_backend/service"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
 	"github.com/google/uuid"
@@ -136,6 +138,8 @@ func SignUpAccount(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
+
+	otpService.SendEmailRegisterUser(signUpReq.Email)
 
 	baseResponse.Status = http.StatusCreated
 	baseResponse.Message = "Account Created Successfully"

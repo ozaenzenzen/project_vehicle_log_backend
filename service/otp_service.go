@@ -8,15 +8,23 @@ import (
 	"time"
 )
 
+// OTPEntry holds the OTP and its expiration time.
+type OTPEntry struct {
+	OTP       string
+	ExpiresAt time.Time
+}
+
+// OTPStore stores OTPs with expiration times.
 var otpStore = struct {
 	sync.RWMutex
-	data map[string]string // Email to OTP mapping
-}{data: make(map[string]string)}
+	data map[string]OTPEntry // Email to OTP mapping
+}{data: make(map[string]OTPEntry)}
 
 // registerUser handles user registration and sends OTP to their email.
 func SendEmailRegisterUser(email string) error {
 	otp := generateOTP(6)
-	storeOTP(email, otp)
+	expiration := time.Now().Add(5 * time.Minute) // OTP expires in 5 minutes
+	storeOTP(email, otp, expiration)
 
 	message := fmt.Sprintf("Subject: Account Verification\n\nYour OTP is: %s", otp)
 	err := sendEmail(email, message)
@@ -27,19 +35,40 @@ func SendEmailRegisterUser(email string) error {
 	return nil
 }
 
-// verifyOTP checks if the OTP entered by the user is valid.
+// verifyOTP checks if the OTP entered by the user is valid and not expired.
 func verifyOTP(email, inputOTP string) bool {
 	otpStore.RLock()
 	defer otpStore.RUnlock()
-	storedOTP, exists := otpStore.data[email]
-	return exists && storedOTP == inputOTP
+	entry, exists := otpStore.data[email]
+	if !exists {
+		return false // OTP not found
+	}
+
+	// Check if OTP is expired
+	if time.Now().After(entry.ExpiresAt) {
+		deleteOTP(email) // Cleanup expired OTP
+		return false     // OTP expired
+	}
+
+	// Check if OTP matches
+	return entry.OTP == inputOTP
 }
 
-// storeOTP saves the OTP for the given email.
-func storeOTP(email, otp string) {
+// storeOTP saves the OTP and its expiration time for the given email.
+func storeOTP(email, otp string, expiresAt time.Time) {
 	otpStore.Lock()
 	defer otpStore.Unlock()
-	otpStore.data[email] = otp
+	otpStore.data[email] = OTPEntry{
+		OTP:       otp,
+		ExpiresAt: expiresAt,
+	}
+}
+
+// deleteOTP removes an OTP entry for a given email.
+func deleteOTP(email string) {
+	otpStore.Lock()
+	defer otpStore.Unlock()
+	delete(otpStore.data, email)
 }
 
 // generateOTP generates a random numeric OTP of the given length.

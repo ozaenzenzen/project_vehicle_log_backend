@@ -112,6 +112,7 @@ func ResendOTP(c *gin.Context) {
 
 	// Update otp_key to string empty
 	updateOTPData := db.Model(&dataOTP).
+		Update("otp_key", "").
 		Update("resend_otp_key", "")
 
 	fmt.Println("updateOTPData.RowsAffected x: ", updateOTPData.RowsAffected)
@@ -273,6 +274,7 @@ func OTPValidation(c *gin.Context) {
 	// Update otp_key to string empty and add count
 	updateOTPData := db.Model(&dataOTP).
 		Update("otp_key", "").
+		// Update("resend_otp_key", "").
 		Update(&account.OTPModel{Count: dataOTP.Count + 1})
 
 	fmt.Println("updateOTPData.RowsAffected: ", updateOTPData.RowsAffected)
@@ -431,6 +433,29 @@ func SignUpAccount(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, baseResponse)
 		return
 	}
+	// // Check if OTP Data Stored in Table
+	// var dataOTP account.OTPModel
+	// processHere := db.Table("otp_models").
+	// 	Where("email = ?", signUpReq.Email).
+	// 	Last(&dataOTP)
+	// if processHere.Error != nil {
+	// 	baseResponse.Status = http.StatusInternalServerError
+	// 	baseResponse.Message = "Internal Error"
+	// 	c.JSON(baseResponse.Status, baseResponse)
+	// 	return
+	// }
+
+	// if dataOTP.OTPKey != "" && dataOTP.ResendOTPKey != "" {
+	// 	baseResponse.Status = http.StatusBadRequest
+	// 	baseResponse.Message = "Please Input OTP"
+	// 	c.JSON(baseResponse.Status, baseResponse)
+	// 	return
+	// }
+
+	// *string, *string, *baseResp.BaseResponseModel
+	var otpKey *string
+	var resendOtpKey *string
+	var errorRespSendEmail *baseResp.BaseResponseModel
 
 	result := db.FirstOrCreate(
 		&insertDBPayload,
@@ -439,14 +464,63 @@ func SignUpAccount(c *gin.Context) {
 		},
 	)
 	if result.Value == nil && result.RowsAffected == 0 {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "Record found"
-		baseResponse.Data = nil
-		c.JSON(http.StatusBadRequest, baseResponse)
-		return
+		var userDataFind account.AccountUserModel
+		if err := db.Table("account_user_models").
+			Where(&account.AccountUserModel{Email: signUpReq.Email}).
+			First(&userDataFind).
+			Error; err != nil {
+			baseResponse.Status = http.StatusBadRequest
+			baseResponse.Message = "Not Found"
+			baseResponse.Data = nil
+			c.JSON(http.StatusBadRequest, baseResponse)
+			return
+		}
+		fmt.Println("userDataFind.Email: ", userDataFind.Email)
+		fmt.Println("userDataFind.IsActivated: ", userDataFind.IsActivated)
+
+		if userDataFind.Email != "" {
+			if userDataFind.IsActivated == 0 {
+				otpKey, resendOtpKey, errorRespSendEmail = SendEmailAndStoreOTPHelper(db, signUpReq.Email)
+				if errorRespSendEmail != nil {
+					baseResponse.Status = errorRespSendEmail.Status
+					baseResponse.Message = errorRespSendEmail.Message
+					baseResponse.Data = nil
+					c.JSON(baseResponse.Status, baseResponse)
+					return
+				}
+
+				baseResponse.Status = http.StatusAccepted
+				baseResponse.Message = "Registered, Unverified"
+				// baseResponse.Data = nil
+				baseResponse.Data = &resp.AccountSignUpDataModel{
+					UserId:       nil,
+					UserStamp:    nil,
+					Name:         nil,
+					Email:        nil,
+					Phone:        nil,
+					OTPKey:       *otpKey,
+					ResendOTPKey: *resendOtpKey,
+				}
+				c.JSON(baseResponse.Status, baseResponse)
+				return
+			} else {
+				baseResponse.Status = http.StatusAccepted
+				baseResponse.Message = "Registered, Verified"
+				baseResponse.Data = nil
+				c.JSON(baseResponse.Status, baseResponse)
+				return
+			}
+		}
+
+		// baseResponse.Status = http.StatusBadRequest
+		// baseResponse.Message = "Record found"
+		// baseResponse.Data = nil
+		// c.JSON(http.StatusBadRequest, baseResponse)
+		// return
 	}
 
-	otpKey, resendOtpKey, errorRespSendEmail := SendEmailAndStoreOTPHelper(db, signUpReq.Email)
+	otpKey, resendOtpKey, errorRespSendEmail = SendEmailAndStoreOTPHelper(db, signUpReq.Email)
+	// otpKey, resendOtpKey, errorRespSendEmail := SendEmailAndStoreOTPHelper(db, signUpReq.Email)
 	if errorRespSendEmail != nil {
 		baseResponse.Status = errorRespSendEmail.Status
 		baseResponse.Message = errorRespSendEmail.Message
@@ -458,11 +532,11 @@ func SignUpAccount(c *gin.Context) {
 	baseResponse.Status = http.StatusCreated
 	baseResponse.Message = "Account Created Successfully"
 	baseResponse.Data = &resp.AccountSignUpDataModel{
-		UserId:       insertDBPayload.ID,
-		UserStamp:    insertDBPayload.UserStamp,
-		Name:         signUpReq.Name,
-		Email:        signUpReq.Email,
-		Phone:        signUpReq.Phone,
+		UserId:       &insertDBPayload.ID,
+		UserStamp:    &insertDBPayload.UserStamp,
+		Name:         &signUpReq.Name,
+		Email:        &signUpReq.Email,
+		Phone:        &signUpReq.Phone,
 		OTPKey:       *otpKey,
 		ResendOTPKey: *resendOtpKey,
 	}

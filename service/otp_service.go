@@ -1,11 +1,16 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/smtp"
 	"sync"
 	"time"
+
+	configModel "project_vehicle_log_backend/data"
 )
 
 // OTPEntry holds the OTP and its expiration time.
@@ -119,10 +124,27 @@ func generateOTP(length int) string {
 // sendEmail sends an email using SMTP.
 func sendEmail(to, message string) error {
 	from := "fauzanamahdi@gmail.com"
-	password := "boxckmwjdmufhckd"
+	password := localConfig()
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
 
-	auth := smtp.PlainAuth("", from, password, smtpHost)
+	auth := smtp.PlainAuth("", from, *password, smtpHost)
 	return smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, []byte(message))
+}
+
+func localConfig() *string {
+	data, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		log.Fatalf("Failed to read config file: %v", err)
+		return nil
+	}
+
+	var config configModel.Config
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.Fatalf("Failed to parse config file: %v", err)
+		return nil
+	}
+
+	fmt.Println("Secret:", config.Secret)
+	return &config.Secret
 }

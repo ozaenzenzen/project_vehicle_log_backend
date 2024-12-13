@@ -28,7 +28,9 @@ var otpStore = struct {
 // registerUser handles user registration and sends OTP to their email.
 func SendEmailRegisterUser(email string) (*string, *string, *time.Time, *string) {
 	otp := generateOTP(6)
-	expiration := time.Now().Add(5 * time.Minute) // OTP expires in 5 minutes
+	// expiration := time.Now().Add(5 * time.Minute) // OTP expires in 5 minutes
+	// TODO
+	expiration := time.Now().Add(20 * time.Minute) // OTP expires in 20 minutes
 	// storeOTP(email, otp, expiration)
 
 	message := fmt.Sprintf("Subject: Account Verification\n\nYour OTP is: %s", otp)

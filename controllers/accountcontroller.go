@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	baseResp "project_vehicle_log_backend/data"
 	req "project_vehicle_log_backend/data/account/request"
 	resp "project_vehicle_log_backend/data/account/response"
 	helper "project_vehicle_log_backend/helper"
+	"time"
 
 	// account "project_vehicle_log_backend/models/account"
 	account "project_vehicle_log_backend/models/account"
@@ -48,14 +50,37 @@ func ResendOTP(c *gin.Context) {
 
 	var dataOTP account.OTPModel
 	if err := db.Table("otp_models").
-		Where("resend_otp_key = ?", reqBody.ResendOTPKey).
+		Where("resend_otp_key = ?", &reqBody.ResendOTPKey).
 		Last(&dataOTP).
-		Update(account.OTPModel{ResendOTPKey: ""}).
+		// Update(&account.OTPModel{ResendOTPKey: ""}).
 		Error; err != nil {
 		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "Not yet add otp"
+		baseResponse.Message = "Failed Resend OTP 1: Used"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
+	}
+	fmt.Println("dataOTP.OTPKey: ", dataOTP.OTPKey)
+	fmt.Println("dataOTP.ResendOTPKey: ", dataOTP.ResendOTPKey)
+
+	if dataOTP.Count >= 5 {
+		dataCreatedAt := dataOTP.CreatedAt
+		// Add 24 hours to createdAt
+		expiryTime := dataCreatedAt.Add(6 * time.Hour)
+
+		// Get the current time
+		currentTime := time.Now().UTC()
+
+		// Check if 24 hours have passed
+		if !currentTime.After(expiryTime) {
+			fmt.Println("24 hours have not yet passed since createdAt.")
+			baseResponse.Status = http.StatusUnauthorized
+			baseResponse.Message = "Maximum OTP Hit, Try 6 Hours Later"
+			c.JSON(baseResponse.Status, baseResponse)
+			return
+		}
+		// else {
+		// 	fmt.Println("24 hours have passed since createdAt.")
+		// }
 	}
 
 	var dataAccount account.AccountUserModel
@@ -63,7 +88,7 @@ func ResendOTP(c *gin.Context) {
 		Where("email = ?", dataOTP.Email).
 		First(&dataAccount).Error; err != nil {
 		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "User Data Not Found"
+		baseResponse.Message = "User Not Found"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
@@ -73,6 +98,20 @@ func ResendOTP(c *gin.Context) {
 		baseResponse.Status = resultResp.Status
 		baseResponse.Message = resultResp.Message
 		baseResponse.Data = nil
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Update otp_key to string empty
+	updateOTPData := db.Model(&dataOTP).
+		Update("resend_otp_key", "")
+
+	fmt.Println("updateOTPData.RowsAffected x: ", updateOTPData.RowsAffected)
+	fmt.Println("updateOTPData.Error x: ", updateOTPData.Error)
+	fmt.Println("updateOTPData.Value x: ", updateOTPData.Value)
+	if updateOTPData.Error != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Failed Here"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
@@ -114,16 +153,18 @@ func OTPValidation(c *gin.Context) {
 		return
 	}
 
+	// Check if an account is registered
 	var dataAccount account.AccountUserModel
 	if err := db.Table("account_user_models").
 		Where("email = ?", reqBody.Email).
 		First(&dataAccount).Error; err != nil {
 		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "User Data Not Found"
+		baseResponse.Message = "User Not Found"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
+	// Check if an accoutn already activated
 	if dataAccount.IsActivated == 1 {
 		baseResponse.Status = http.StatusBadRequest
 		baseResponse.Message = "Already Activated"
@@ -131,6 +172,7 @@ func OTPValidation(c *gin.Context) {
 		return
 	}
 
+	// Check if an account disabled
 	if dataAccount.StatusAccount != 1 {
 		baseResponse.Status = http.StatusUnauthorized
 		baseResponse.Message = "Account Disabled"
@@ -138,38 +180,48 @@ func OTPValidation(c *gin.Context) {
 		return
 	}
 
+	// Check if OTP Data Stored in Table
 	var dataOTP account.OTPModel
-	if err := db.Table("otp_models").
-		Where("email = ? AND otp_key = ?", reqBody.Email, reqBody.OTPKey).
-		Last(&dataOTP).
-		Update(account.OTPModel{OTPKey: ""}).
-		Error; err != nil {
+	processHere := db.Table("otp_models").
+		Where("email = ?", reqBody.Email).
+		Where("otp_key = ?", reqBody.OTPKey).
+		Last(&dataOTP)
+	if processHere.Error != nil {
 		baseResponse.Status = http.StatusBadRequest
 		baseResponse.Message = "Failed OTP Process, Please Resend OTP"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
-	// if dataOTP.Count >= 5 {
-	// 	baseResponse.Status = http.StatusLocked
-	// 	baseResponse.Message = "Maximum Hit"
-	// 	c.JSON(baseResponse.Status, baseResponse)
-	// 	return
-	// }
-	// dataCreatedAt := dataOTP.CreatedAt
-	// // Add 24 hours to createdAt
-	// expiryTime := dataCreatedAt.Add(24 * time.Hour)
+	if dataOTP.Count >= 5 {
+		dataCreatedAt := dataOTP.CreatedAt
+		// Add 24 hours to createdAt
+		expiryTime := dataCreatedAt.Add(24 * time.Hour)
 
-	// // Get the current time
-	// currentTime := time.Now().UTC()
+		// Get the current time
+		currentTime := time.Now().UTC()
 
-	// // Check if 24 hours have passed
-	// if currentTime.After(expiryTime) {
-	// 	fmt.Println("24 hours have passed since createdAt.")
-	// } else {
-	// 	fmt.Println("24 hours have not yet passed since createdAt.")
-	// }
+		// Check if 24 hours have passed
+		if currentTime.After(expiryTime) {
+			fmt.Println("24 hours have passed since createdAt.")
+		} else {
+			fmt.Println("24 hours have not yet passed since createdAt.")
+		}
 
+		if dataOTP.OTPKey == "" {
+			baseResponse.Status = http.StatusBadRequest
+			baseResponse.Message = "Please Resend OTP Again"
+			c.JSON(baseResponse.Status, baseResponse)
+			return
+		}
+
+		baseResponse.Status = http.StatusLocked
+		baseResponse.Message = "Maximum Try OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Verifying OTP
 	isOTPVerified := otpService.VerifyOTP(
 		dataOTP.Email,
 		reqBody.OTP,
@@ -177,18 +229,50 @@ func OTPValidation(c *gin.Context) {
 		dataOTP.ExpiryAt,
 	)
 	if !isOTPVerified {
+		// Update otp_key to string empty and add count
+		updateOTPData := db.Model(&dataOTP).
+			Update(&account.OTPModel{Count: dataOTP.Count + 1})
+
+		fmt.Println("updateOTPData.RowsAffected 3x: ", updateOTPData.RowsAffected)
+		fmt.Println("updateOTPData.Error 3x: ", updateOTPData.Error)
+		fmt.Println("updateOTPData.Value 3x: ", updateOTPData.Value)
+		if processHere.Error != nil {
+			baseResponse.Status = http.StatusBadRequest
+			baseResponse.Message = "Failed Here 3"
+			c.JSON(baseResponse.Status, baseResponse)
+			return
+		}
+
 		baseResponse.Status = http.StatusUnauthorized
 		baseResponse.Message = "Failed Verify OTP"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
-	// dataAccount.IsActivated = 1
+	// Update status account to activated
 	if err := db.Table("account_user_models").
 		Where("email = ?", reqBody.Email).
-		First(&dataAccount).Update(&account.AccountUserModel{IsActivated: 1}).Error; err != nil {
+		First(&dataAccount).
+		Update(&account.AccountUserModel{IsActivated: 1}).
+		Error; err != nil {
+
 		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = "User Data Not Found"
+		baseResponse.Message = "Failed Internal Process"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Update otp_key to string empty and add count
+	updateOTPData := db.Model(&dataOTP).
+		Update("otp_key", "").
+		Update(&account.OTPModel{Count: dataOTP.Count + 1})
+
+	fmt.Println("updateOTPData.RowsAffected: ", updateOTPData.RowsAffected)
+	fmt.Println("updateOTPData.Error: ", updateOTPData.Error)
+	fmt.Println("updateOTPData.Value: ", updateOTPData.Value)
+	if processHere.Error != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Failed Here"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
@@ -353,10 +437,10 @@ func SignUpAccount(c *gin.Context) {
 		return
 	}
 
-	otpKey, resendOtpKey, resultResp := SendEmailAndStoreOTPHelper(db, signUpReq.Email)
-	if resultResp != nil {
-		baseResponse.Status = resultResp.Status
-		baseResponse.Message = resultResp.Message
+	otpKey, resendOtpKey, errorRespSendEmail := SendEmailAndStoreOTPHelper(db, signUpReq.Email)
+	if errorRespSendEmail != nil {
+		baseResponse.Status = errorRespSendEmail.Status
+		baseResponse.Message = errorRespSendEmail.Message
 		baseResponse.Data = nil
 		c.JSON(baseResponse.Status, baseResponse)
 		return

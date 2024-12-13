@@ -26,7 +26,23 @@ var otpStore = struct {
 }{data: make(map[string]OTPEntry)}
 
 // registerUser handles user registration and sends OTP to their email.
-func SendEmailRegisterUser(email string) (*string, *string, *time.Time, *string) {
+func SendEmailRegisterUser(email string) (*string, *string, *time.Time, *time.Time, *string) {
+	otp := generateOTP(6)
+	expiration := time.Now().Add(20 * time.Minute)       // OTP expires in 20 minutes
+	expirationResend := time.Now().Add(60 * time.Minute) // OTP expires in 60 minutes
+
+	message := fmt.Sprintf("Subject: Account Verification\n\nYour OTP is: %s", otp)
+	err := sendEmail(email, message)
+	errorSendMail := "failed to send OTP email: %v"
+	if err != nil {
+		return nil, nil, nil, nil, &errorSendMail
+	}
+	fmt.Println("OTP sent to:", email)
+	return &email, &otp, &expiration, &expirationResend, nil
+}
+
+// registerUser handles user registration and sends OTP to their email.
+func SendEmailRegisterUserOld1(email string) (*string, *string, *time.Time, *string) {
 	otp := generateOTP(6)
 	// expiration := time.Now().Add(5 * time.Minute) // OTP expires in 5 minutes
 	// TODO

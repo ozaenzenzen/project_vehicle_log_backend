@@ -83,6 +83,14 @@ func ResendOTP(c *gin.Context) {
 		// }
 	}
 
+	// Check if OTP is expired
+	if time.Now().After(dataOTP.ResendExpiryAt) {
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Expired Resend OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
 	var dataAccount account.AccountUserModel
 	if err := db.Table("account_user_models").
 		Where("email = ?", dataOTP.Email).
@@ -330,7 +338,7 @@ func RefreshToken(c *gin.Context) {
 func SendEmailAndStoreOTPHelper(db *gorm.DB, inputEmail string) (*string, *string, *baseResp.BaseResponseModel) {
 	baseResponse := baseResp.BaseResponseModel{}
 
-	email, otp, expiration, errorData := otpService.SendEmailRegisterUser(inputEmail)
+	email, otp, expiration, expirationResend, errorData := otpService.SendEmailRegisterUser(inputEmail)
 	if errorData != nil {
 		baseResponse.Status = http.StatusBadRequest
 		baseResponse.Message = *errorData
@@ -342,11 +350,12 @@ func SendEmailAndStoreOTPHelper(db *gorm.DB, inputEmail string) (*string, *strin
 	resendOtpKey := helper.RandomHash(inputEmail + "ResendOTPKey")
 
 	otpModel := account.OTPModel{
-		Email:        *email,
-		OTP:          *otp,
-		ExpiryAt:     *expiration,
-		OTPKey:       *otpKey,
-		ResendOTPKey: *resendOtpKey,
+		Email:          *email,
+		OTP:            *otp,
+		ExpiryAt:       *expiration,
+		ResendExpiryAt: *expirationResend,
+		OTPKey:         *otpKey,
+		ResendOTPKey:   *resendOtpKey,
 	}
 
 	resultStore := db.Create(&otpModel)

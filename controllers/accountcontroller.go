@@ -701,3 +701,88 @@ func EditProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 
 }
+
+func ChangePassword(c *gin.Context) {
+	baseResponse := resp.ChangePasswordResponseModel{}
+
+	var changePasswordReq req.ChangePasswordRequestModel
+	if err := c.ShouldBindJSON(&changePasswordReq); err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data Tidak Lengkap"
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	if changePasswordReq.NewPassword != changePasswordReq.ConfirmNewPassword {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Different data"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	checkHashPw := helper.CheckPasswordHash(changePasswordReq.OldPassword, userData.Password)
+	if !checkHashPw {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Invalid old password"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	hashPw, errPw := helper.HashPassword(changePasswordReq.NewPassword)
+	if errPw != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errPw.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	hashCpw, errCpw := helper.HashPassword(changePasswordReq.ConfirmNewPassword)
+	if errCpw != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errCpw.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	result := db.Table("account_user_models").
+		Where("id = ?", userData.ID).
+		// First(&dataAccount).
+		Update(&account.AccountUserModel{
+			Password:        hashPw,
+			ConfirmPassword: hashCpw,
+		})
+		// Update(changePasswordReq)
+	if result.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Terjadi kesalahan"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	respNotif := helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Change Password",
+		"Anda Telah Mengganti Password",
+	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Change Password Successfully"
+	c.JSON(http.StatusOK, baseResponse)
+
+}

@@ -786,3 +786,51 @@ func ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 
 }
+
+// TODO
+func ForgotPassword(c *gin.Context) {
+	baseResponse := resp.GetUserDataResponseModel{}
+
+	var editProfileReq req.EditProfileRequesModel
+	if err := c.ShouldBindJSON(&editProfileReq); err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data Tidak Lengkap"
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	result := db.Table("account_user_models").Where("id = ?", userData.ID).Update(editProfileReq)
+	if result.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Terjadi kesalahan"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	respNotif := helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Edit Profile",
+		"Anda Telah Mengubah Data Profile",
+	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusAccepted
+	baseResponse.Message = "Edit Profile Successfully"
+	c.JSON(http.StatusOK, baseResponse)
+
+}

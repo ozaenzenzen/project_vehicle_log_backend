@@ -925,6 +925,7 @@ func ValidateOTPForgotPassword(c *gin.Context) {
 	processHere := db.Table("otp_models").
 		Where("email = ?", reqBody.Email).
 		Where("otp_key = ?", reqBody.OTPKey).
+		Where("forgot_key = ?", reqBody.ForgotKey).
 		Last(&dataOTP)
 	if processHere.Error != nil {
 		baseResponse.Status = http.StatusBadRequest
@@ -1063,6 +1064,13 @@ func ChangePasswordForgotPassword(c *gin.Context) {
 		return
 	}
 
+	if dataOTP.OTPKey != "" {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Invalidate OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
 	if dataOTP.ForgotKey == "" {
 		baseResponse.Status = http.StatusBadRequest
 		baseResponse.Message = "Invalid process"
@@ -1118,10 +1126,9 @@ func ChangePasswordForgotPassword(c *gin.Context) {
 		return
 	}
 
-	// Update otp_key to string empty
+	// Validate if forgot_key is used
 	updateOTPData := db.Model(&dataOTP).
-		Update("otp_key", "").
-		Update("resend_otp_key", "")
+		Update("forgot_key", "")
 
 	if updateOTPData.Error != nil {
 		baseResponse.Status = http.StatusInternalServerError

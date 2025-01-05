@@ -11,6 +11,7 @@ type OTPModel struct {
 	Count          int       `gorm:"default:1" json:"count"`
 	OTPKey         string    `json:"otp_key"`
 	ResendOTPKey   string    `json:"resend_otp_key"`
+	ForgotKey      string    `json:"forgot_key"`
 	CreatedAt      time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

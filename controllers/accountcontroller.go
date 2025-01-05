@@ -371,6 +371,42 @@ func SendEmailAndStoreOTPHelper(db *gorm.DB, inputEmail string) (*string, *strin
 	return otpKey, resendOtpKey, nil
 }
 
+func SendEmailAndStoreOTPHelperForgotPassword(db *gorm.DB, inputEmail string) (*string, *string, *string, *baseResp.BaseResponseModel) {
+	baseResponse := baseResp.BaseResponseModel{}
+
+	email, otp, expiration, expirationResend, errorData := otpService.SendEmailRegisterUser(inputEmail)
+	if errorData != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = *errorData
+		baseResponse.Data = nil
+		return nil, nil, nil, &baseResponse
+	}
+
+	otpKey := helper.RandomHash(inputEmail + "OTPKey")
+	resendOtpKey := helper.RandomHash(inputEmail + "ResendOTPKey")
+	forgotKey := helper.RandomHash(inputEmail + "ForgotKey")
+
+	otpModel := account.OTPModel{
+		Email:          *email,
+		OTP:            *otp,
+		ExpiryAt:       *expiration,
+		ResendExpiryAt: *expirationResend,
+		OTPKey:         *otpKey,
+		ResendOTPKey:   *resendOtpKey,
+		ForgotKey:      *forgotKey,
+	}
+
+	resultStore := db.Create(&otpModel)
+	if resultStore.Error != nil {
+		baseResponse.Status = 400
+		baseResponse.Message = resultStore.Error.Error()
+		baseResponse.Data = nil
+		return nil, nil, nil, &baseResponse
+	}
+
+	return otpKey, resendOtpKey, forgotKey, nil
+}
+
 func SignUpAccount(c *gin.Context) {
 	baseResponse := resp.AccountSignUpResponseModel{}
 
@@ -787,27 +823,294 @@ func ChangePassword(c *gin.Context) {
 
 }
 
-// TODO
-func ForgotPassword(c *gin.Context) {
-	baseResponse := resp.GetUserDataResponseModel{}
+func SendOTPForgotPassword(c *gin.Context) {
+	baseResponse := resp.SendOTPForgotPasswordResponseModel{}
 
-	var editProfileReq req.EditProfileRequesModel
-	if err := c.ShouldBindJSON(&editProfileReq); err != nil {
+	var sendOTPForgotPasswordReq req.SendOTPForgotPasswordRequestModel
+	if err := c.ShouldBindJSON(&sendOTPForgotPasswordReq); err != nil {
 		baseResponse.Status = http.StatusBadRequest
 		baseResponse.Message = "Data Tidak Lengkap"
 		c.JSON(http.StatusBadRequest, baseResponse)
 		return
 	}
 
-	db, _, userData, errorResp := helper.CustomValidatorAC(c)
-	if errorResp != nil {
-		baseResponse.Status = errorResp.Status
-		baseResponse.Message = errorResp.Message
-		c.JSON(errorResp.Status, baseResponse)
+	db := c.MustGet("db").(*gorm.DB)
+	if db.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = db.Error.Error()
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
-	result := db.Table("account_user_models").Where("id = ?", userData.ID).Update(editProfileReq)
+	var dataAccount account.AccountUserModel
+	if err := db.Table("account_user_models").
+		Where("email = ?", sendOTPForgotPasswordReq.Email).
+		First(&dataAccount).Error; err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "User Data Not Found"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	if dataAccount.StatusAccount == 0 {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Account Disabled"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	var otpKey *string
+	var resendOtpKey *string
+	var forgotKey *string
+	var errorRespSendEmail *baseResp.BaseResponseModel
+
+	otpKey, resendOtpKey, forgotKey, errorRespSendEmail = SendEmailAndStoreOTPHelperForgotPassword(db, dataAccount.Email)
+	if errorRespSendEmail != nil {
+		baseResponse.Status = errorRespSendEmail.Status
+		baseResponse.Message = errorRespSendEmail.Message
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Send OTP Forgot Password Success"
+	baseResponse.Data = &resp.SendOTPForgotPasswordDataModel{
+		OTPKey:       *otpKey,
+		ResendOTPKey: *resendOtpKey,
+		ForgotKey:    *forgotKey,
+	}
+	c.JSON(http.StatusOK, baseResponse)
+}
+
+func ValidateOTPForgotPassword(c *gin.Context) {
+	baseResponse := resp.ValidateOTPForgotPasswordResponseModel{}
+
+	var reqBody req.ValidateOTPForgotPasswordRequestModel
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data Tidak Lengkap"
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+	if db.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = db.Error.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Check if an account is registered
+	var dataAccount account.AccountUserModel
+	if err := db.Table("account_user_models").
+		Where("email = ?", reqBody.Email).
+		First(&dataAccount).Error; err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "User Not Found"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Check if an account disabled
+	if dataAccount.StatusAccount != 1 {
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Account Disabled"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Check if OTP Data Stored in Table
+	var dataOTP account.OTPModel
+	processHere := db.Table("otp_models").
+		Where("email = ?", reqBody.Email).
+		Where("otp_key = ?", reqBody.OTPKey).
+		Last(&dataOTP)
+	if processHere.Error != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Failed OTP Process, Please Resend OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	if dataOTP.Count >= 5 {
+		dataCreatedAt := dataOTP.CreatedAt
+		// Add 24 hours to createdAt
+		expiryTime := dataCreatedAt.Add(24 * time.Hour)
+
+		// Get the current time
+		currentTime := time.Now().UTC()
+
+		// Check if 24 hours have passed
+		if currentTime.After(expiryTime) {
+			fmt.Println("24 hours have passed since createdAt.")
+		} else {
+			fmt.Println("24 hours have not yet passed since createdAt.")
+		}
+
+		if dataOTP.OTPKey == "" {
+			baseResponse.Status = http.StatusBadRequest
+			baseResponse.Message = "Please Resend OTP Again"
+			c.JSON(baseResponse.Status, baseResponse)
+			return
+		}
+
+		baseResponse.Status = http.StatusLocked
+		baseResponse.Message = "Maximum Try OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Verifying OTP
+	isOTPVerified := otpService.VerifyOTP(
+		dataOTP.Email,
+		reqBody.OTP,
+		dataOTP.OTP,
+		dataOTP.ExpiryAt,
+	)
+	if !isOTPVerified {
+		// Update otp_key to string empty and add count
+		updateOTPData := db.Model(&dataOTP).
+			Update(&account.OTPModel{Count: dataOTP.Count + 1})
+
+		fmt.Println("updateOTPData.RowsAffected 3x: ", updateOTPData.RowsAffected)
+		fmt.Println("updateOTPData.Error 3x: ", updateOTPData.Error)
+		fmt.Println("updateOTPData.Value 3x: ", updateOTPData.Value)
+		if processHere.Error != nil {
+			baseResponse.Status = http.StatusBadRequest
+			baseResponse.Message = "Failed Here 3"
+			c.JSON(baseResponse.Status, baseResponse)
+			return
+		}
+
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Failed Verify OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Update status account to activated
+	if err := db.Table("account_user_models").
+		Where("email = ?", reqBody.Email).
+		First(&dataAccount).
+		Update(&account.AccountUserModel{IsActivated: 1}).
+		Error; err != nil {
+
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Failed Internal Process"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Update otp_key to string empty and add count
+	updateOTPData := db.Model(&dataOTP).
+		Update("otp_key", "").
+		// Update("resend_otp_key", "").
+		Update(&account.OTPModel{Count: dataOTP.Count + 1})
+
+	fmt.Println("updateOTPData.RowsAffected: ", updateOTPData.RowsAffected)
+	fmt.Println("updateOTPData.Error: ", updateOTPData.Error)
+	fmt.Println("updateOTPData.Value: ", updateOTPData.Value)
+	if processHere.Error != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Failed Here"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Success OTP Forgot Password"
+	c.JSON(baseResponse.Status, baseResponse)
+
+}
+
+// TODO
+func ChangePasswordForgotPassword(c *gin.Context) {
+	baseResponse := resp.ChangePasswordForgotPasswordResponseModel{}
+
+	var changePasswordForgotPasswordReq req.ChangePasswordForgotPasswordRequestModel
+	if err := c.ShouldBindJSON(&changePasswordForgotPasswordReq); err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data Tidak Lengkap"
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
+	if changePasswordForgotPasswordReq.NewPassword != changePasswordForgotPasswordReq.ConfirmNewPassword {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Different data"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+	if db.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = db.Error.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Check if OTP Data Stored in Table
+	var dataOTP account.OTPModel
+	processHere := db.Table("otp_models").
+		Where("forgot_key = ?", changePasswordForgotPasswordReq.ForgotKey).
+		Last(&dataOTP)
+	if processHere.Error != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Failed OTP Process, Please Resend OTP"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	if dataOTP.ForgotKey == "" {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Invalid process"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Check if an account is registered
+	var dataAccount account.AccountUserModel
+	if err := db.Table("account_user_models").
+		Where("email = ?", dataOTP.Email).
+		First(&dataAccount).Error; err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "User Not Found"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	// Check if an account disabled
+	if dataAccount.StatusAccount != 1 {
+		baseResponse.Status = http.StatusUnauthorized
+		baseResponse.Message = "Account Disabled"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	hashPw, errPw := helper.HashPassword(changePasswordForgotPasswordReq.NewPassword)
+	if errPw != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errPw.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	hashCpw, errCpw := helper.HashPassword(changePasswordForgotPasswordReq.ConfirmNewPassword)
+	if errCpw != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errCpw.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	result := db.Table("account_user_models").
+		Where("email = ?", dataOTP.Email).
+		Update(&account.AccountUserModel{
+			Password:        hashPw,
+			ConfirmPassword: hashCpw,
+		})
 	if result.Error != nil {
 		baseResponse.Status = http.StatusInternalServerError
 		baseResponse.Message = "Terjadi kesalahan"
@@ -815,12 +1118,24 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 
+	// Update otp_key to string empty
+	updateOTPData := db.Model(&dataOTP).
+		Update("otp_key", "").
+		Update("resend_otp_key", "")
+
+	if updateOTPData.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Failed Internal"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
 	respNotif := helper.InsertNotification(
 		c,
 		db,
-		userData,
-		"Edit Profile",
-		"Anda Telah Mengubah Data Profile",
+		&dataAccount,
+		"Change Password Forgot Password",
+		"Anda Telah Mengganti Password Forgot Password",
 	)
 	if respNotif != nil {
 		baseResponse.Status = respNotif.Status
@@ -829,8 +1144,8 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	baseResponse.Status = http.StatusAccepted
-	baseResponse.Message = "Edit Profile Successfully"
-	c.JSON(http.StatusOK, baseResponse)
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Change Password Forgot Password Successfully"
+	c.JSON(baseResponse.Status, baseResponse)
 
 }

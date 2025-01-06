@@ -1078,6 +1078,22 @@ func ChangePasswordForgotPassword(c *gin.Context) {
 		return
 	}
 
+	hashPw, errPw := helper.HashPassword(changePasswordForgotPasswordReq.NewPassword)
+	if errPw != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errPw.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	hashCpw, errCpw := helper.HashPassword(changePasswordForgotPasswordReq.ConfirmNewPassword)
+	if errCpw != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = errCpw.Error()
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
 	// Check if an account is registered
 	var dataAccount account.AccountUserModel
 	if err := db.Table("account_user_models").
@@ -1093,22 +1109,6 @@ func ChangePasswordForgotPassword(c *gin.Context) {
 	if dataAccount.StatusAccount != 1 {
 		baseResponse.Status = http.StatusUnauthorized
 		baseResponse.Message = "Account Disabled"
-		c.JSON(baseResponse.Status, baseResponse)
-		return
-	}
-
-	hashPw, errPw := helper.HashPassword(changePasswordForgotPasswordReq.NewPassword)
-	if errPw != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = errPw.Error()
-		c.JSON(baseResponse.Status, baseResponse)
-		return
-	}
-
-	hashCpw, errCpw := helper.HashPassword(changePasswordForgotPasswordReq.ConfirmNewPassword)
-	if errCpw != nil {
-		baseResponse.Status = http.StatusBadRequest
-		baseResponse.Message = errCpw.Error()
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}

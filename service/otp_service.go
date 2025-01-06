@@ -141,7 +141,8 @@ func generateOTP(length int) string {
 
 // sendEmail sends an email using SMTP.
 func sendEmail(to, message string) error {
-	from := "fauzanamahdi@gmail.com"
+	from := "developervehiclelog@gmail.com"
+	// from := "fauzanamahdi@gmail.com"
 	password := localConfig()
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"

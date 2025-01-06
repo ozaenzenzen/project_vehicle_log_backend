@@ -1098,12 +1098,49 @@ func ChangePasswordForgotPassword(c *gin.Context) {
 	var dataAccount account.AccountUserModel
 	if err := db.Table("account_user_models").
 		Where("email = ?", dataOTP.Email).
-		First(&dataAccount).Error; err != nil {
+		First(&dataAccount).
+		Update(&account.AccountUserModel{
+			Password:        hashPw,
+			ConfirmPassword: hashCpw,
+		}).
+		Error; err != nil {
 		baseResponse.Status = http.StatusBadRequest
 		baseResponse.Message = "User Not Found"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
+
+	// var dataAccount account.AccountUserModel
+	// // Fetch the user
+	// queryFetch := "SELECT * FROM account_user_models WHERE email = ? LIMIT 1"
+	// if err := db.Raw(queryFetch, dataOTP.Email).Scan(&dataAccount).Error; err != nil {
+	// 	if errors.Is(err, gorm.ErrRecordNotFound) {
+	// 		// return nil, fmt.Errorf("user not found")
+	// 		baseResponse.Status = http.StatusBadRequest
+	// 		baseResponse.Message = "User Not Found"
+	// 		c.JSON(baseResponse.Status, baseResponse)
+	// 		return
+	// 	}
+	// 	// return nil, err
+	// 	baseResponse.Status = http.StatusBadRequest
+	// 	baseResponse.Message = err.Error()
+	// 	c.JSON(baseResponse.Status, baseResponse)
+	// 	return
+	// }
+
+	// // Update the password
+	// queryUpdate := `
+	// 	UPDATE account_user_models
+	// 	SET password = ?, confirm_password = ?
+	// 	WHERE email = ?;
+	// `
+	// if err := db.Exec(queryUpdate, hashPw, hashCpw, dataOTP.Email).Error; err != nil {
+	// 	// return nil, err
+	// 	baseResponse.Status = http.StatusBadRequest
+	// 	baseResponse.Message = err.Error()
+	// 	c.JSON(baseResponse.Status, baseResponse)
+	// 	return
+	// }
 
 	// Check if an account disabled
 	if dataAccount.StatusAccount != 1 {
@@ -1113,18 +1150,18 @@ func ChangePasswordForgotPassword(c *gin.Context) {
 		return
 	}
 
-	result := db.Table("account_user_models").
-		Where("email = ?", dataOTP.Email).
-		Update(&account.AccountUserModel{
-			Password:        hashPw,
-			ConfirmPassword: hashCpw,
-		})
-	if result.Error != nil {
-		baseResponse.Status = http.StatusInternalServerError
-		baseResponse.Message = "Terjadi kesalahan"
-		c.JSON(baseResponse.Status, baseResponse)
-		return
-	}
+	// result := db.Table("account_user_models").
+	// 	Where("email = ?", dataOTP.Email).
+	// 	Update(&account.AccountUserModel{
+	// 		Password:        hashPw,
+	// 		ConfirmPassword: hashCpw,
+	// 	})
+	// if result.Error != nil {
+	// 	baseResponse.Status = http.StatusInternalServerError
+	// 	baseResponse.Message = "Terjadi kesalahan"
+	// 	c.JSON(baseResponse.Status, baseResponse)
+	// 	return
+	// }
 
 	// Validate if forgot_key is used
 	updateOTPData := db.Model(&dataOTP).

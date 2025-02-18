@@ -22,6 +22,7 @@ type AccountUserModel struct {
 // Is Activated
 // 0: not yet otp verified
 // 1: verified otp
+// 2: deactivated
 
 // Type Account
 // 0: basic

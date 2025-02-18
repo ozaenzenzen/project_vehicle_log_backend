@@ -737,6 +737,50 @@ func EditProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, baseResponse)
 
 }
+func DeleteAccount(c *gin.Context) {
+	baseResponse := resp.DeleteAccountResponseModel{}
+
+	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	if errorResp != nil {
+		baseResponse.Status = errorResp.Status
+		baseResponse.Message = errorResp.Message
+		c.JSON(errorResp.Status, baseResponse)
+		return
+	}
+
+	result := db.Table("account_user_models").
+		Where("id = ?", userData.ID).
+		Update(&account.AccountUserModel{
+			// StatusAccount: 0,
+			IsActivated: 0,
+		})
+
+	if result.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = "Something went wrong"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	respNotif := helper.InsertNotification(
+		c,
+		db,
+		userData,
+		"Delete Account",
+		"You're account already deleted",
+	)
+	if respNotif != nil {
+		baseResponse.Status = respNotif.Status
+		baseResponse.Message = respNotif.Message
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	baseResponse.Status = http.StatusOK
+	baseResponse.Message = "Delete account successfully"
+	c.JSON(http.StatusOK, baseResponse)
+
+}
 
 func ChangePassword(c *gin.Context) {
 	baseResponse := resp.ChangePasswordResponseModel{}

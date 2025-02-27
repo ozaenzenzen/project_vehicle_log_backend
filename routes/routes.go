@@ -20,12 +20,21 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	})
 	r.POST("/device/checkdevice", controllers.CheckDevice)
 
+	r.POST("/otp/validation", controllers.OTPValidation)
+	r.POST("/otp/resend", controllers.ResendOTP)
+
 	r.POST("/account/signin", controllers.SignInAccount)
 	r.POST("/account/signup", controllers.SignUpAccount)
 	r.POST("/account/editprofile", controllers.EditProfile)
 	r.GET("/account/refreshtoken", controllers.RefreshToken)
 	// r.GET("/account/userdata/:id", controllers.GetUserData)
 	r.GET("/account/userdata", controllers.GetUserData)
+	r.POST("/account/changepassword", controllers.ChangePassword)
+	r.POST("/account/delete", controllers.DeleteAccount)
+
+	r.POST("/account/changepasswordforgotpassword", controllers.ChangePasswordForgotPassword)
+	r.POST("/account/sendOTPforgotpassword", controllers.SendOTPForgotPassword)
+	r.POST("/account/validateOTPforgotpassword", controllers.ValidateOTPForgotPassword)
 
 	r.GET("/vehicle/allvehicle", controllers.GetAllVehicleData)
 	r.POST("/vehicle/allvehicleV2", controllers.GetAllVehicleDataV2)
@@ -33,7 +42,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.POST("/vehicle/createvehicle", controllers.CreateVehicle)
 	r.POST("/vehicle/editvehicle", controllers.EditVehicle)
 	r.POST("/vehicle/createlogvehicle", controllers.CreateLogVehicle)
-	r.GET("/vehicle/getlogvehicle", controllers.GetLogVehicle)
+	// r.GET("/vehicle/getlogvehicle", controllers.GetLogVehicle)
 	r.POST("/vehicle/getlogvehicleV2", controllers.GetLogVehicleV2)
 	r.GET("/vehicle/getlistlogtype", controllers.GetListLogType)
 	r.PUT("/vehicle/editmeasurementlogvehicle", controllers.EditMeasurementLogVehicle)

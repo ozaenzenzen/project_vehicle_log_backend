@@ -1,6 +1,9 @@
 package helper
 
 import (
+	"crypto/sha512"
+	"encoding/hex"
+	"fmt"
 	"hash/fnv"
 
 	"golang.org/x/crypto/bcrypt"
@@ -34,4 +37,17 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+func RandomHash(data string) *string {
+	// data := "example data to hash"
+	randomString, errors := RandomString(25)
+	if errors != nil {
+		return nil
+	}
+	dataInput := randomString + data
+	hash := sha512.Sum512([]byte(dataInput))
+	hashString := hex.EncodeToString(hash[:])
+	fmt.Println("Generated String:", hashString)
+	return &hashString
 }

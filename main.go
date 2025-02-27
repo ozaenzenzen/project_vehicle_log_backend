@@ -17,6 +17,7 @@ func main() {
 	sqlDB.SetMaxOpenConns(100)
 	db.AutoMigrate(
 		&account.AccountUserModel{},
+		&account.OTPModel{},
 		&vehicle.VehicleModel{},
 		&vehicle.VehicleMeasurementLogModel{},
 		&notif.Notification{},

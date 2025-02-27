@@ -619,6 +619,14 @@ func SignInAccount(c *gin.Context) {
 		return
 	}
 
+	if tableAccount.IsActivated == 2 {
+		baseResponse.Status = http.StatusNotFound
+		baseResponse.Message = "Account deleted"
+		baseResponse.Data = nil
+		c.JSON(http.StatusUnauthorized, baseResponse)
+		return
+	}
+
 	checkHashPw := helper.CheckPasswordHash(signInReq.Password, tableAccount.Password)
 	if !checkHashPw {
 		baseResponse.Status = http.StatusUnauthorized
@@ -740,7 +748,7 @@ func EditProfile(c *gin.Context) {
 func DeleteAccount(c *gin.Context) {
 	baseResponse := resp.DeleteAccountResponseModel{}
 
-	db, _, userData, errorResp := helper.CustomValidatorAC(c)
+	db, userStamp, userData, errorResp := helper.CustomValidatorAC(c)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
@@ -749,10 +757,10 @@ func DeleteAccount(c *gin.Context) {
 	}
 
 	result := db.Table("account_user_models").
-		Where("id = ?", userData.ID).
+		Where("user_stamp = ?", userStamp).
 		Update(&account.AccountUserModel{
 			// StatusAccount: 0,
-			IsActivated: 0,
+			IsActivated: 2,
 		})
 
 	if result.Error != nil {

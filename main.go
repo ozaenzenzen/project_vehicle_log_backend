@@ -22,6 +22,7 @@ func main() {
 		&vehicle.VehicleMeasurementLogModel{},
 		&notif.Notification{},
 		&device.DeviceModel{},
+		&account.DeletedModel{},
 	)
 
 	r := routes.SetupRoutes(db)

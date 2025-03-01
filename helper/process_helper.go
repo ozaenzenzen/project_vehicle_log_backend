@@ -409,6 +409,22 @@ func CustomValidatorAC(c *gin.Context) (*gorm.DB, *string, *account.AccountUserM
 		}
 	}
 
+	if dataAccount.IsActivated == 0 {
+		return nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusNotFound,
+			Message: "Account Unverified",
+			Data:    nil,
+		}
+	}
+
+	if dataAccount.IsActivated == 2 {
+		return nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusNotFound,
+			Message: "Account Deleted",
+			Data:    nil,
+		}
+	}
+
 	return db, &userStamp, &dataAccount, nil
 }
 
@@ -486,6 +502,22 @@ func CustomValidatorWithRequestBody[T any](c *gin.Context, requestModel T) (*T, 
 		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: "User Data Not Found",
+			Data:    nil,
+		}
+	}
+
+	if dataAccount.IsActivated == 0 {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusNotFound,
+			Message: "Account Unverified",
+			Data:    nil,
+		}
+	}
+
+	if dataAccount.IsActivated == 2 {
+		return nil, nil, nil, nil, &baseResp.BaseResponseModel{
+			Status:  http.StatusNotFound,
+			Message: "Account Deleted",
 			Data:    nil,
 		}
 	}

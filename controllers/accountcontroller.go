@@ -748,11 +748,19 @@ func EditProfile(c *gin.Context) {
 func DeleteAccount(c *gin.Context) {
 	baseResponse := resp.DeleteAccountResponseModel{}
 
+	var reqBody req.DeleteAccountRequestModel
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		baseResponse.Status = http.StatusBadRequest
+		baseResponse.Message = "Data Tidak Lengkap"
+		c.JSON(http.StatusBadRequest, baseResponse)
+		return
+	}
+
 	db, userStamp, userData, errorResp := helper.CustomValidatorAC(c)
 	if errorResp != nil {
 		baseResponse.Status = errorResp.Status
 		baseResponse.Message = errorResp.Message
-		c.JSON(errorResp.Status, baseResponse)
+		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}
 
@@ -766,6 +774,20 @@ func DeleteAccount(c *gin.Context) {
 	if result.Error != nil {
 		baseResponse.Status = http.StatusInternalServerError
 		baseResponse.Message = "Something went wrong"
+		c.JSON(baseResponse.Status, baseResponse)
+		return
+	}
+
+	inputDeletedModel := account.DeletedModel{
+		UserStamp: userData.UserStamp,
+		Email:     userData.Email,
+		Reason:    *reqBody.Reason,
+	}
+
+	storeDeletedTable := db.Table("deleted_models").Create(&inputDeletedModel)
+	if storeDeletedTable.Error != nil {
+		baseResponse.Status = http.StatusInternalServerError
+		baseResponse.Message = storeDeletedTable.Error.Error() + "Deleted error"
 		c.JSON(baseResponse.Status, baseResponse)
 		return
 	}

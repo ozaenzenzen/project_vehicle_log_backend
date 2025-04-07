@@ -26,6 +26,11 @@ func DBConfig() (*string, *string, *string, *string, *string) {
 	}
 
 	fmt.Println("Secret:", config.Secret)
+	fmt.Println("User:", config.User)
+	fmt.Println("Pass:", config.Pass)
+	fmt.Println("Port:", config.Port)
+	fmt.Println("DBName:", config.DBName)
+	fmt.Println("Host:", config.Host)
 	return &config.User, &config.Pass, &config.Port, &config.DBName, &config.Host
 }
 

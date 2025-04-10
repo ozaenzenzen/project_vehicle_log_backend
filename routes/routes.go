@@ -15,6 +15,7 @@ type HandleRoutesResponse struct {
 
 func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r := gin.Default()
+	// gin.SetMode(gin.ReleaseMode)
 	r.Use(func(c *gin.Context) {
 		c.Set("db", db)
 	})

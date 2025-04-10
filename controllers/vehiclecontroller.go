@@ -658,7 +658,7 @@ func GetAllVehiclePaginationUsingRawV2(
 		var value2 any = result[i].MeasurementTitle
 		bytes2, errConvert := convertToBytes(value2)
 		if errConvert != nil {
-			fmt.Println("Error:", errConvert)
+			fmt.Println("Error Here:", errConvert)
 			return nil, errConvert
 		}
 
@@ -981,7 +981,7 @@ func GetLogVehicleCollectionDataProcess(
 	var value2 any = resultDataAnalytics.MeasurementTitles
 	bytes2, errConvert := convertToBytes(value2)
 	if errConvert != nil {
-		fmt.Println("Error:", errConvert)
+		fmt.Println("Error Here 2:", errConvert)
 		return nil, &baseResp.BaseResponseModel{
 			Status:  http.StatusBadRequest,
 			Message: errConvert.Error(),

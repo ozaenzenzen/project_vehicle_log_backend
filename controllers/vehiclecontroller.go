@@ -656,6 +656,7 @@ func GetAllVehiclePaginationUsingRawV2(
 	for i := range result {
 		// Example with string
 		var value2 any = result[i].MeasurementTitle
+		fmt.Println("value2:", value2)
 		bytes2, errConvert := convertToBytes(value2)
 		if errConvert != nil {
 			fmt.Println("Error Here:", errConvert)

@@ -654,8 +654,8 @@ func GetAllVehiclePaginationUsingRawV2(
 
 	// Unmarshal MeasurementTitle JSON into a slice
 	for i := range result {
-		fmt.Println("i:", i)
-		fmt.Println("result[i]:", result[i])
+		// fmt.Println("i:", i)
+		// fmt.Println("result[i]:", result[i])
 		// Example with string
 		var value2 any = result[i].MeasurementTitle
 		fmt.Println("value2:", value2)

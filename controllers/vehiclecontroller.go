@@ -659,17 +659,24 @@ func GetAllVehiclePaginationUsingRawV2(
 		// Example with string
 		var value2 any = result[i].MeasurementTitle
 		fmt.Println("value2:", value2)
-		bytes2, errConvert := convertToBytes(value2)
-		if errConvert != nil {
-			fmt.Println("Error Here:", errConvert)
-			return nil, errConvert
-		}
 
-		var titles []string
-		if err := json.Unmarshal([]byte(bytes2), &titles); err != nil {
-			return nil, err
+		// Check if value of measurement title is nil or not
+		// value2 will be nil for new account because haven't input any measurement yet
+		if value2 == nil {
+			result[i].MeasurementTitle = nil
+		} else {
+			bytes2, errConvert := convertToBytes(value2)
+			if errConvert != nil {
+				fmt.Println("Error Here:", errConvert)
+				return nil, errConvert
+			}
+
+			var titles []string
+			if err := json.Unmarshal([]byte(bytes2), &titles); err != nil {
+				return nil, err
+			}
+			result[i].MeasurementTitle = titles // Set the unmarshaled result back to the struct
 		}
-		result[i].MeasurementTitle = titles // Set the unmarshaled result back to the struct
 	}
 
 	// Calculate nextPage
